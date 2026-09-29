@@ -1,14 +1,19 @@
 # MistralChat.py (version RAG)
+# Migration : mistralai 0.4.2 -> 3.x (client `Mistral`, `chat.complete`, messages en dicts).
+# Le prompt et la logique RAG sont ceux du prototype d'origine (baseline de l'audit).
 import logging
 
 import streamlit as st
-from mistralai import Mistral
+from mistralai.client import Mistral
 
-# --- Importations depuis vos modules ---
+# --- Importations depuis les modules du projet ---
 try:
     from utils.config import (
-        MISTRAL_API_KEY, MODEL_NAME, SEARCH_K,
-        APP_TITLE, NAME,
+        APP_TITLE,
+        MISTRAL_API_KEY,
+        MODEL_NAME,
+        NAME,
+        SEARCH_K,
     )
     from utils.vector_store import VectorStoreManager
 except ImportError as e:
@@ -29,7 +34,7 @@ if not MISTRAL_API_KEY:
     st.stop()
 
 
-@st.cache_resource  # Le client n'est créé qu'une seule fois, pas à chaque interaction
+@st.cache_resource  # Client créé une seule fois, pas à chaque interaction
 def get_mistral_client(api_key: str) -> Mistral:
     client = Mistral(api_key=api_key)
     logging.info("Client Mistral initialisé.")
@@ -70,21 +75,19 @@ def get_vector_store_manager():
 
 vector_store_manager = get_vector_store_manager()
 
-# --- Prompt pour le RAG ---
-# Chaîne classique (pas une f-string) : {context_str} et {question} sont remplis plus bas avec .format()
+# --- Prompt RAG (prototype d'origine, conservé tel quel pour la baseline) ---
+# Chaîne classique (pas une f-string) : {context_str} et {question} sont remplis avec .format()
 SYSTEM_PROMPT = """Tu es 'NBA Analyst AI', un assistant expert sur la ligue de basketball NBA.
 Ta mission est de répondre aux questions des fans en animant le débat.
-Appuie-toi en priorité sur le contexte ci-dessous. S'il ne contient pas l'information, dis-le clairement.
 
-CONTEXTE :
 ---
 {context_str}
 ---
 
-QUESTION DU FAN :
+QUESTION DU FAN:
 {question}
 
-RÉPONSE DE L'ANALYSTE NBA :"""
+RÉPONSE DE L'ANALYSTE NBA:"""
 
 # --- Initialisation de l'historique de conversation ---
 if "messages" not in st.session_state:
@@ -107,12 +110,10 @@ def generer_reponse(prompt_messages: list[dict]) -> str:
 
     try:
         logging.info(f"Appel à l'API Mistral, modèle '{model}', avec {len(prompt_messages)} message(s).")
-        # logging.debug(f"Prompt envoyé à l'API : {prompt_messages}")
-
         response = client.chat.complete(
             model=model,
             messages=prompt_messages,
-            temperature=0.1,  # Température basse pour des réponses factuelles basées sur le contexte
+            temperature=0.1,  # Température basse pour des réponses factuelles
         )
 
         if response.choices:
@@ -134,8 +135,8 @@ def formater_contexte(search_results: list[dict]) -> str:
         return "Aucune information pertinente trouvée dans la base de connaissances pour cette question."
 
     return "\n\n---\n\n".join(
-        f"Source : {res['metadata'].get('source', 'Inconnue')} (Score : {res['score']:.1f}%)\n"
-        f"Contenu : {res['text']}"
+        f"Source: {res['metadata'].get('source', 'Inconnue')} (Score: {res['score']:.1f}%)\n"
+        f"Contenu: {res['text']}"
         for res in search_results
     )
 

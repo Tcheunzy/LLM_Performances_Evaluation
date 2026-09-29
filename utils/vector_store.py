@@ -1,276 +1,263 @@
-# utils/data_loader.py
-import os
-import requests
-import zipfile
-import io
-from pathlib import Path
-from typing import List, Dict, Optional, Union
+# utils/vector_store.py
+# Migration : mistralai 0.4.2 -> 3.x (client `Mistral`, `embeddings.create(inputs=...)`, `MistralError`).
+# La logique d'indexation et de recherche est inchangée par rapport au prototype d'origine.
 import logging
+import os
+import pickle
+from typing import Any, Dict, List, Optional
+
+import faiss
 import numpy as np
-from tqdm import tqdm # Ajout de tqdm
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document  # Format attendu par le splitter
+from mistralai.client import Mistral
+from mistralai.client.errors import MistralError  # Classe mère des erreurs API (SDKError, etc.)
 
-# --- Importations pour OCR ---
-try:
-    import fitz  # PyMuPDF
-    from PIL import Image
-    import easyocr
+from .config import (
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    DOCUMENT_CHUNKS_FILE,
+    EMBEDDING_BATCH_SIZE,
+    EMBEDDING_MODEL,
+    FAISS_INDEX_FILE,
+    MISTRAL_API_KEY,
+)
 
-    # Initialiser le lecteur EasyOCR une seule fois
-    logging.info("Initialisation du lecteur EasyOCR...")
-    reader = easyocr.Reader(['en', 'fr']) 
-    logging.info("Lecteur EasyOCR initialisé.")
-
-except ImportError as e:
-    logging.warning(f"Modules OCR (PyMuPDF, Pillow, easyocr) non installés ou erreur: {e}. L'OCR pour PDF ne sera pas disponible.")
-    fitz = None
-    Image = None
-    easyocr = None
-    reader = None
-except Exception as e:
-    logging.error(f"Erreur inattendue lors du chargement des modules/modèle OCR: {e}")
-    fitz = None
-    Image = None
-    easyocr = None
-    reader = None
-
-# Configuration du logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# --- Fonctions d'extraction de texte ---
-
-def extract_text_from_pdf_with_ocr(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier PDF en utilisant l'OCR (EasyOCR)."""
-    if not fitz or not reader:
-        logging.warning("Modules/Modèle OCR non disponibles. Impossible d'effectuer l'OCR.")
-        return None
-
-    text_content = []
-    try:
-        doc = fitz.open(file_path)
-        # Utiliser tqdm pour la barre de progression
-        for page_num in tqdm(range(len(doc)), desc=f"OCR de {os.path.basename(file_path)}"):
-            page = doc.load_page(page_num)
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Augmenter la résolution pour l'OCR
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            
-            try:
-                img_np = np.array(img)
-                results = reader.readtext(img_np)
-                page_text = "\n".join([res[1] for res in results])
-                text_content.append(page_text)
-                # logging.info(f"OCR effectuée sur la page {page_num + 1} de {file_path} avec EasyOCR") # Commenté pour éviter le spam de logs avec tqdm
-            except Exception as ocr_e:
-                logging.error(f"Erreur lors de l'OCR de la page {page_num + 1} de {file_path} avec EasyOCR: {ocr_e}")
-                continue
-
-        doc.close()
-        full_text = "\n".join(text_content).strip()
-        if full_text:
-            logging.info(f"Texte extrait via OCR de PDF: {file_path} ({len(full_text)} caractères)")
-            return full_text
-        else:
-            logging.warning(f"Aucun texte significatif extrait via OCR de {file_path}.")
-            return None
-    except Exception as e:
-        logging.error(f"Erreur lors de l'ouverture ou du traitement OCR du PDF {file_path}: {e}")
-        return None
-
-def extract_text_from_pdf(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier PDF, avec fallback OCR si peu de texte est trouvé."""
-    try:
-        from PyPDF2 import PdfReader
-        reader = PdfReader(file_path)
-        text = "".join(page.extract_text() + "\n" for page in reader.pages if page.extract_text())
-        
-        if len(text.strip()) < 100: # Si très peu de texte est extrait, tenter l'OCR
-            logging.info(f"Peu de texte trouvé dans {file_path} via extraction standard ({len(text.strip())} caractères). Tentative d'OCR...")
-            ocr_text = extract_text_from_pdf_with_ocr(file_path)
-            if ocr_text:
-                return ocr_text
-            else:
-                logging.warning(f"L'OCR n'a pas non plus produit de texte significatif pour {file_path}.")
-                return text # Retourne le peu de texte trouvé ou vide
-        
-        logging.info(f"Texte extrait de PDF: {file_path} ({len(text)} caractères)")
-        return text
-    except Exception as e:
-        logging.error(f"Erreur extraction PDF {file_path}: {e}. Tentative d'OCR en dernier recours...")
-        # Si l'extraction standard échoue complètement, tenter l'OCR
-        ocr_text = extract_text_from_pdf_with_ocr(file_path)
-        if ocr_text:
-            return ocr_text
-        else:
-            logging.warning(f"L'OCR n'a pas non plus produit de texte significatif après échec de l'extraction standard pour {file_path}.")
-            return None
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-def extract_text_from_docx(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier Word DOCX."""
-    try:
-        import docx
-        doc = docx.Document(file_path)
-        text = "\n".join(para.text for para in doc.paragraphs if para.text)
-        logging.info(f"Texte extrait de DOCX: {file_path} ({len(text)} caractères)")
-        return text
-    except Exception as e:
-        logging.error(f"Erreur extraction DOCX {file_path}: {e}")
-        return None
+class VectorStoreManager:
+    """Gère la création, le chargement et la recherche dans un index Faiss."""
 
-def extract_text_from_txt(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier texte brut."""
-    try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            text = f.read()
-        logging.info(f"Texte extrait de TXT: {file_path} ({len(text)} caractères)")
-        return text
-    except Exception as e:
-        logging.error(f"Erreur extraction TXT {file_path}: {e}")
-        return None
+    def __init__(self):
+        self.index: Optional[faiss.Index] = None
+        self.document_chunks: List[Dict[str, Any]] = []
+        self.mistral_client = Mistral(api_key=MISTRAL_API_KEY)
+        self._load_index_and_chunks()
 
-def extract_text_from_csv(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier CSV (convertit en string)."""
-    try:
-        import pandas as pd
+    # ------------------------------------------------------------------ #
+    # Chargement / sauvegarde
+    # ------------------------------------------------------------------ #
+    def _load_index_and_chunks(self):
+        """Charge l'index Faiss et les chunks si les fichiers existent."""
+        if not (os.path.exists(FAISS_INDEX_FILE) and os.path.exists(DOCUMENT_CHUNKS_FILE)):
+            logging.warning("Fichiers d'index Faiss ou de chunks non trouvés. L'index est vide.")
+            return
+
         try:
-            df = pd.read_csv(file_path)
-        except UnicodeDecodeError:
-            df = pd.read_csv(file_path, encoding='latin1') # Essayer un autre encodage courant
-        except Exception as read_e:
-             logging.warning(f"Erreur lecture CSV {file_path}: {read_e}. Tentative avec séparateur ';'")
-             try:
-                 df = pd.read_csv(file_path, sep=';')
-             except UnicodeDecodeError:
-                  df = pd.read_csv(file_path, sep=';', encoding='latin1')
-             except Exception as read_e2:
-                   logging.error(f"Impossible de lire le CSV {file_path}: {read_e2}")
-                   return None
+            logging.info(f"Chargement de l'index Faiss depuis {FAISS_INDEX_FILE}...")
+            self.index = faiss.read_index(FAISS_INDEX_FILE)
+            logging.info(f"Chargement des chunks depuis {DOCUMENT_CHUNKS_FILE}...")
+            with open(DOCUMENT_CHUNKS_FILE, "rb") as f:
+                self.document_chunks = pickle.load(f)
+            logging.info(f"Index ({self.index.ntotal} vecteurs) et {len(self.document_chunks)} chunks chargés.")
+        except Exception as e:
+            logging.error(f"Erreur lors du chargement de l'index/chunks : {e}")
+            self.index = None
+            self.document_chunks = []
 
-        text = df.to_string()
-        logging.info(f"Texte extrait de CSV: {file_path} ({len(text)} caractères)")
-        return text
-    except ImportError:
-        logging.warning("Pandas non installé. Impossible de lire les fichiers CSV.")
-        return None
-    except Exception as e:
-        logging.error(f"Erreur extraction CSV {file_path}: {e}")
-        return None
+    def _save_index_and_chunks(self):
+        """Sauvegarde l'index Faiss et la liste des chunks."""
+        if self.index is None or not self.document_chunks:
+            logging.warning("Tentative de sauvegarde d'un index ou de chunks vides.")
+            return
 
-def extract_text_from_excel(file_path: str) -> Optional[Union[str, Dict[str, str]]]:
-    """Extrait le texte de chaque feuille d'un fichier Excel."""
-    try:
-        import pandas as pd
-        # Lire toutes les feuilles dans un dictionnaire de DataFrames
-        excel_file = pd.ExcelFile(file_path)
-        sheets_data = {}
-        for sheet_name in excel_file.sheet_names:
-            df = excel_file.parse(sheet_name)
-            sheets_data[sheet_name] = df.to_string()
-        
-        logging.info(f"Texte extrait de {len(sheets_data)} feuille(s) dans Excel: {file_path}")
-        # Si une seule feuille, retourne directement le texte pour la compatibilité
-        if len(sheets_data) == 1:
-            return list(sheets_data.values())[0]
-        return sheets_data
-    except ImportError:
-        logging.warning("Pandas ou openpyxl non installé. Impossible de lire les fichiers Excel.")
-        return None
-    except Exception as e:
-        logging.error(f"Erreur extraction Excel {file_path}: {e}")
-        return None
+        os.makedirs(os.path.dirname(FAISS_INDEX_FILE), exist_ok=True)
+        os.makedirs(os.path.dirname(DOCUMENT_CHUNKS_FILE), exist_ok=True)
 
-# --- Fonctions de chargement ---
+        try:
+            logging.info(f"Sauvegarde de l'index Faiss dans {FAISS_INDEX_FILE}...")
+            faiss.write_index(self.index, FAISS_INDEX_FILE)
+            logging.info(f"Sauvegarde des chunks dans {DOCUMENT_CHUNKS_FILE}...")
+            with open(DOCUMENT_CHUNKS_FILE, "wb") as f:
+                pickle.dump(self.document_chunks, f)
+            logging.info("Index et chunks sauvegardés avec succès.")
+        except Exception as e:
+            logging.error(f"Erreur lors de la sauvegarde de l'index/chunks : {e}")
 
-def download_and_extract_zip(url: str, output_dir: str) -> bool:
-    """Télécharge un fichier ZIP depuis une URL et l'extrait."""
-    if not url:
-        logging.warning("Aucune URL fournie pour le téléchargement.")
-        return False
-    try:
-        logging.info(f"Téléchargement des données depuis {url}...")
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
+    # ------------------------------------------------------------------ #
+    # Indexation
+    # ------------------------------------------------------------------ #
+    def _split_documents_to_chunks(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Découpe les documents en chunks avec métadonnées."""
+        logging.info(
+            f"Découpage de {len(documents)} documents en chunks "
+            f"(taille={CHUNK_SIZE}, chevauchement={CHUNK_OVERLAP})..."
+        )
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP,
+            length_function=len,  # Mesure en caractères
+            add_start_index=True,  # Position de début du chunk dans le document original
+        )
 
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
+        all_chunks = []
+        for doc_counter, doc in enumerate(documents):
+            langchain_doc = Document(page_content=doc["page_content"], metadata=doc["metadata"])
+            chunks = text_splitter.split_documents([langchain_doc])
+            logging.info(f"  Document '{doc['metadata'].get('filename', 'N/A')}' découpé en {len(chunks)} chunks.")
 
-        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-            logging.info(f"Extraction du contenu dans {output_dir}...")
-            z.extractall(output_dir)
-        logging.info("Téléchargement et extraction terminés.")
-        return True
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Erreur de téléchargement: {e}")
-        return False
-    except zipfile.BadZipFile:
-        logging.error("Le fichier téléchargé n'est pas un ZIP valide.")
-        return False
-    except Exception as e:
-        logging.error(f"Erreur inattendue lors du téléchargement/extraction: {e}")
-        return False
-
-def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
-    """
-    Charge et parse récursivement les fichiers d'un répertoire.
-    Retourne une liste de dictionnaires, chacun représentant un document.
-    """
-    documents = []
-    input_path = Path(input_dir)
-    if not input_path.is_dir():
-        logging.error(f"Le répertoire d'entrée '{input_dir}' n'existe pas.")
-        return []
-
-    logging.info(f"Parcours du répertoire source: {input_dir}")
-    for file_path in input_path.rglob("*.*"):
-        if file_path.is_file():
-            relative_path = file_path.relative_to(input_path)
-            source_folder = relative_path.parts[0] if len(relative_path.parts) > 1 else "root"
-            ext = file_path.suffix.lower()
-            
-            logging.debug(f"Traitement du fichier: {relative_path} (Dossier source: {source_folder})")
-
-            extracted_content = None
-            if ext == ".pdf":
-                extracted_content = extract_text_from_pdf(str(file_path))
-            elif ext == ".docx":
-                extracted_content = extract_text_from_docx(str(file_path))
-            elif ext == ".txt":
-                extracted_content = extract_text_from_txt(str(file_path))
-            elif ext == ".csv":
-                extracted_content = extract_text_from_csv(str(file_path))
-            elif ext in [".xlsx", ".xls"]:
-                extracted_content = extract_text_from_excel(str(file_path))
-            # Suppression de la gestion des fichiers HTML
-            else:
-                logging.warning(f"Type de fichier non supporté ignoré: {relative_path}")
-                continue
-
-            if not extracted_content:
-                logging.warning(f"Aucun contenu n'a pu être extrait de {relative_path}")
-                continue
-            
-            # Si c'est un dictionnaire (plusieurs feuilles Excel), créer un doc par feuille
-            if isinstance(extracted_content, dict):
-                for sheet_name, text in extracted_content.items():
-                    documents.append({
-                        "page_content": text,
-                        "metadata": {
-                            "source": f"{str(relative_path)} (Feuille: {sheet_name})",
-                            "filename": file_path.name,
-                            "sheet": sheet_name,
-                            "category": source_folder,
-                            "full_path": str(file_path.resolve())
-                        }
-                    })
-            else: # Pour tous les autres types de fichiers
-                 documents.append({
-                    "page_content": extracted_content,
+            for i, chunk in enumerate(chunks):
+                all_chunks.append({
+                    "id": f"{doc_counter}_{i}",  # doc_index_chunk_index
+                    "text": chunk.page_content,
                     "metadata": {
-                        "source": str(relative_path),
-                        "filename": file_path.name,
-                        "category": source_folder,
-                        "full_path": str(file_path.resolve())
-                    }
+                        **chunk.metadata,  # source, category, filename, etc.
+                        "chunk_id_in_doc": i,
+                        "start_index": chunk.metadata.get("start_index", -1),
+                    },
                 })
 
-    logging.info(f"{len(documents)} documents chargés et parsés.")
-    return documents
+        logging.info(f"Total de {len(all_chunks)} chunks créés.")
+        return all_chunks
+
+    def _generate_embeddings(self, chunks: List[Dict[str, Any]]) -> Optional[np.ndarray]:
+        """Génère les embeddings pour une liste de chunks via l'API Mistral."""
+        if not MISTRAL_API_KEY:
+            logging.error("Impossible de générer les embeddings : MISTRAL_API_KEY manquante.")
+            return None
+        if not chunks:
+            logging.warning("Aucun chunk fourni pour générer les embeddings.")
+            return None
+
+        logging.info(f"Génération des embeddings pour {len(chunks)} chunks (modèle : {EMBEDDING_MODEL})...")
+        all_embeddings: List = []
+        total_batches = (len(chunks) + EMBEDDING_BATCH_SIZE - 1) // EMBEDDING_BATCH_SIZE
+
+        for i in range(0, len(chunks), EMBEDDING_BATCH_SIZE):
+            batch_num = i // EMBEDDING_BATCH_SIZE + 1
+            texts_to_embed = [chunk["text"] for chunk in chunks[i:i + EMBEDDING_BATCH_SIZE]]
+            logging.info(f"  Traitement du lot {batch_num}/{total_batches} ({len(texts_to_embed)} chunks)")
+
+            try:
+                response = self.mistral_client.embeddings.create(
+                    model=EMBEDDING_MODEL,
+                    inputs=texts_to_embed,
+                )
+                all_embeddings.extend(data.embedding for data in response.data)
+
+            except Exception as e:
+                # Correction du prototype : toutes les erreurs (API ou autres) sont traitées pareil,
+                # pour que le nombre d'embeddings reste égal au nombre de chunks.
+                if isinstance(e, MistralError):
+                    logging.error(f"Erreur API Mistral (lot {batch_num}) : {e}")
+                else:
+                    logging.error(f"Erreur inattendue (lot {batch_num}) : {e}")
+
+                if not all_embeddings:
+                    logging.error("Impossible de déterminer la dimension des embeddings, saut du lot.")
+                    continue
+                dim = len(all_embeddings[0])
+                logging.warning(f"Ajout de {len(texts_to_embed)} vecteurs nuls de dimension {dim} pour le lot échoué.")
+                all_embeddings.extend([np.zeros(dim, dtype="float32")] * len(texts_to_embed))
+
+        if not all_embeddings:
+            logging.error("Aucun embedding n'a pu être généré.")
+            return None
+
+        embeddings_array = np.array(all_embeddings).astype("float32")
+        logging.info(f"Embeddings générés avec succès. Shape : {embeddings_array.shape}")
+        return embeddings_array
+
+    def build_index(self, documents: List[Dict[str, Any]]):
+        """Construit l'index Faiss à partir des documents."""
+        if not documents:
+            logging.warning("Aucun document fourni pour construire l'index.")
+            return
+
+        # 1. Découper en chunks
+        self.document_chunks = self._split_documents_to_chunks(documents)
+        if not self.document_chunks:
+            logging.error("Le découpage n'a produit aucun chunk. Impossible de construire l'index.")
+            return
+
+        # 2. Générer les embeddings
+        embeddings = self._generate_embeddings(self.document_chunks)
+        if embeddings is None or embeddings.shape[0] != len(self.document_chunks):
+            logging.error("Le nombre d'embeddings ne correspond pas au nombre de chunks.")
+            self.document_chunks = []
+            self.index = None
+            for path in (FAISS_INDEX_FILE, DOCUMENT_CHUNKS_FILE):
+                if os.path.exists(path):
+                    os.remove(path)
+            return
+
+        # 3. Index Faiss pour la similarité cosinus (vecteurs normalisés + produit scalaire)
+        dimension = embeddings.shape[1]
+        logging.info(f"Création de l'index Faiss (cosinus) avec dimension {dimension}...")
+        faiss.normalize_L2(embeddings)
+        self.index = faiss.IndexFlatIP(dimension)
+        self.index.add(embeddings)
+        logging.info(f"Index Faiss créé avec {self.index.ntotal} vecteurs.")
+
+        # 4. Sauvegarder
+        self._save_index_and_chunks()
+
+    # ------------------------------------------------------------------ #
+    # Recherche
+    # ------------------------------------------------------------------ #
+    def search(self, query_text: str, k: int = 5, min_score: Optional[float] = None) -> List[Dict[str, Any]]:
+        """
+        Recherche les k chunks les plus pertinents pour une requête.
+
+        Args:
+            query_text: texte de la requête
+            k: nombre de résultats à retourner
+            min_score: score minimum (entre 0 et 1) pour inclure un résultat
+
+        Returns:
+            Liste de dicts {score, raw_score, text, metadata}, triée par score décroissant.
+        """
+        if self.index is None or not self.document_chunks:
+            logging.warning("Recherche impossible : l'index Faiss n'est pas chargé ou est vide.")
+            return []
+        if not MISTRAL_API_KEY:
+            logging.error("Recherche impossible : MISTRAL_API_KEY manquante pour l'embedding de la requête.")
+            return []
+
+        logging.info(f"Recherche des {k} chunks les plus pertinents pour : '{query_text}'")
+        try:
+            # 1. Embedding de la requête
+            response = self.mistral_client.embeddings.create(
+                model=EMBEDDING_MODEL,
+                inputs=[query_text],
+            )
+            query_embedding = np.array([response.data[0].embedding]).astype("float32")
+            faiss.normalize_L2(query_embedding)
+
+            # 2. Recherche (plus de candidats si un filtre de score est appliqué)
+            search_k = k * 3 if min_score is not None else k
+            scores, indices = self.index.search(query_embedding, search_k)
+
+            # 3. Formatage des résultats
+            min_score_percent = min_score * 100 if min_score is not None else None
+            results = []
+            for raw_score, idx in zip(scores[0], indices[0]):
+                if not 0 <= idx < len(self.document_chunks):
+                    logging.warning(f"Index Faiss {idx} hors limites (taille des chunks : {len(self.document_chunks)}).")
+                    continue
+
+                similarity = float(raw_score) * 100  # Cosinus -> pourcentage
+                if min_score_percent is not None and similarity < min_score_percent:
+                    logging.debug(f"Document filtré (score {similarity:.2f}% < minimum {min_score_percent:.2f}%)")
+                    continue
+
+                chunk = self.document_chunks[idx]
+                results.append({
+                    "score": similarity,
+                    "raw_score": float(raw_score),
+                    "text": chunk["text"],
+                    "metadata": chunk["metadata"],
+                })
+
+            results.sort(key=lambda x: x["score"], reverse=True)
+            results = results[:k]
+            logging.info(f"{len(results)} chunks pertinents trouvés.")
+            return results
+
+        except MistralError as e:
+            logging.error(f"Erreur API Mistral lors de l'embedding de la requête : {e}")
+            return []
+        except Exception as e:
+            logging.error(f"Erreur inattendue lors de la recherche : {e}")
+            return []
