@@ -1,0 +1,17 @@
+
+=== Test 1 : intégrité de l'index (cosinus attendu ≈ 1.00)
+  chunk   0 (Reddit 1.pdf) : cosinus = 1.0000
+  chunk 150 (regular NBA.xlsx (Feuille: Données NBA)) : cosinus = 1.0000
+  chunk 300 (regular NBA.xlsx (Feuille: Dictionnaire des données)) : cosinus = 1.0000
+
+=== Test 2 : top-5 pour « Quel est le 3P% de James Harden ? »
+   72.6 %  regular NBA.xlsx (Feuille: Dictionnaire des données)  contient 'Harden' : False
+   71.1 %  regular NBA.xlsx (Feuille: Dictionnaire des données)  contient 'Harden' : False
+   70.0 %  Reddit 1.pdf                                   contient 'Harden' : False
+   70.0 %  regular NBA.xlsx (Feuille: Dictionnaire des données)  contient 'Harden' : False
+   69.7 %  Reddit 2.pdf                                   contient 'Harden' : False
+
+=== Test 3 : le chunk avec la ligne de Harden (n°102) est classé 91e / 302 (score 65.0 %)
+  (le LLM ne voit que les 5 premiers)
+  Ce que contient ce chunk pour Harden :
+  10               James Harden   LAC   35  79  50  29  35.3  1801  529  1296    41       237  672  35.2  506  577  87.4    55   403   458  687  340  119   55  16...

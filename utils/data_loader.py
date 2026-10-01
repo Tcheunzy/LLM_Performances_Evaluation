@@ -9,9 +9,13 @@ import logging
 import numpy as np
 from tqdm import tqdm # Ajout de tqdm
 
+# Configuration du logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
 # --- Importations pour OCR ---
 try:
-    import fitz  # PyMuPDF
+    import fitz  # PyMuPDF permet la transformation de chaque page du pdf en image.
     from PIL import Image
     import easyocr
 
@@ -32,9 +36,6 @@ except Exception as e:
     Image = None
     easyocr = None
     reader = None
-
-# Configuration du logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Fonctions d'extraction de texte ---
 

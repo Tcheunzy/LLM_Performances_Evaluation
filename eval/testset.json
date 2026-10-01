@@ -1,0 +1,360 @@
+[
+  {
+    "id": "S01",
+    "question": "Quel est le pourcentage de réussite à 3 points (3P%) de Devin Booker ?",
+    "ground_truth": "Le 3P% de Devin Booker est de 33,2 %.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S02",
+    "question": "Combien de points Devin Booker a-t-il marqués au total sur la saison ?",
+    "ground_truth": "Devin Booker a marqué 1920 points au total sur la saison.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S03",
+    "question": "Quel est le rating offensif (OFFRTG) de Stephen Curry ?",
+    "ground_truth": "Le rating offensif (OFFRTG) de Stephen Curry est de 118,4.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S04",
+    "question": "Pour quelle équipe joue Rudy Gobert ?",
+    "ground_truth": "Rudy Gobert joue pour MIN (Minnesota Timberwolves).",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S05",
+    "question": "Combien de matchs l'équipe de Rudy Gobert a-t-elle gagnés lorsqu'il était sur le terrain ?",
+    "ground_truth": "L'équipe de Rudy Gobert a gagné 43 des 72 matchs qu'il a joués.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S06",
+    "question": "Combien de matchs l'équipe de Jayson Tatum a-t-elle perdus lorsqu'il était sur le terrain ?",
+    "ground_truth": "L'équipe de Jayson Tatum a perdu 19 des 72 matchs qu'il a joués.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S07",
+    "question": "Combien de points Tyler Herro marque-t-il en moyenne par match ?",
+    "ground_truth": "Tyler Herro marque en moyenne 23,9 points par match (1840 points en 77 matchs).",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S08",
+    "question": "Quel est le nombre total de rebonds de Tyler Herro sur la saison ?",
+    "ground_truth": "Tyler Herro a capté 400 rebonds au total sur la saison.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S09",
+    "question": "Quel est le PIE (Player Impact Estimate) de James Harden ?",
+    "ground_truth": "Le PIE de James Harden est de 14,5.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S10",
+    "question": "Combien de tirs à 3 points James Harden tente-t-il en moyenne par match ?",
+    "ground_truth": "James Harden tente en moyenne 8,5 tirs à 3 points par match (672 tentatives en 79 matchs).",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S11",
+    "question": "Quel est le nombre de lancers francs tentés par Zach LaVine sur la saison ?",
+    "ground_truth": "Zach LaVine a tenté 289 lancers francs sur la saison.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "S12",
+    "question": "Quel est le nombre de lancers francs réussis par Zach LaVine sur la saison ?",
+    "ground_truth": "Zach LaVine a réussi 237 lancers francs sur la saison.",
+    "category": "simple",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M01",
+    "question": "Quels sont les 3 meilleurs pourcentages à 3 points parmi les joueurs ayant tenté au moins 300 tirs à 3 points ?",
+    "ground_truth": "Les 3 meilleurs 3P% (au moins 300 tentatives) : Zach LaVine (44,6 %), Taurean Prince (43,9 %), Harrison Barnes (43,3 %).",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M02",
+    "question": "Quel joueur a marqué le plus de points sur la saison, et combien ?",
+    "ground_truth": "Shai Gilgeous-Alexander (OKC) a marqué le plus de points : 2485 au total.",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M03",
+    "question": "Quels sont les 3 meilleurs rebondeurs de la saison en nombre total de rebonds ?",
+    "ground_truth": "Les 3 meilleurs rebondeurs (total) : Ivica Zubac (1008), Domantas Sabonis (973), Karl-Anthony Towns (922).",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M04",
+    "question": "Quel joueur a délivré le plus de passes décisives sur la saison, et combien de plus que le deuxième ?",
+    "ground_truth": "Trae Young a délivré le plus de passes décisives (882), soit 168 de plus que le deuxième, Nikola Jokić (714).",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M05",
+    "question": "Quel joueur a le meilleur pourcentage aux lancers francs parmi ceux ayant tenté au moins 200 lancers francs ?",
+    "ground_truth": "Stephen Curry a le meilleur pourcentage aux lancers francs (au moins 200 tentatives) : 93,3 % sur 301 tentatives.",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M06",
+    "question": "Parmi les joueurs de moins de 23 ans, lequel a marqué le plus de points sur la saison ?",
+    "ground_truth": "Alperen Sengun (22 ans, HOU) a marqué le plus de points parmi les moins de 23 ans : 1452 points.",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M07",
+    "question": "Combien de joueurs ont joué au moins 70 matchs avec une moyenne d'au moins 25 points par match ? Lesquels ?",
+    "ground_truth": "6 joueurs : Shai Gilgeous-Alexander (32,7 pts/match), Nikola Jokić (29,6 pts/match), Anthony Edwards (27,6 pts/match), Jayson Tatum (26,8 pts/match), Cade Cunningham (26,1 pts/match), Devin Booker (25,6 pts/match).",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M08",
+    "question": "Quel joueur ayant disputé au moins 60 matchs a le meilleur Net Rating (NETRTG) ?",
+    "ground_truth": "Shai Gilgeous-Alexander (OKC) a le meilleur Net Rating parmi les joueurs à 60 matchs ou plus : 16,7.",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M09",
+    "question": "Compare le nombre de rebonds de Nikola Jokić et de Domantas Sabonis sur la saison, au total et par match.",
+    "ground_truth": "Domantas Sabonis : 973 rebonds (13,9 par match) ; Nikola Jokić : 889 rebonds (12,7 par match). Sabonis en a capté 84 de plus.",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M10",
+    "question": "Chez les Golden State Warriors, quel joueur a le meilleur pourcentage à 3 points parmi ceux ayant tenté au moins 100 tirs à 3 points ?",
+    "ground_truth": "Quinten Post a le meilleur 3P% des Warriors (au moins 100 tentatives) : 40,8 % sur 181 tentatives.",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M11",
+    "question": "Quels sont les deux meilleurs marqueurs de l'équipe OKC (Oklahoma City Thunder) sur la saison ?",
+    "ground_truth": "Les deux meilleurs marqueurs d'OKC : Shai Gilgeous-Alexander (2485 points), Jalen Williams (1490 points).",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "M12",
+    "question": "Quel joueur a réalisé le plus de contres sur la saison, et pour quelle équipe joue-t-il ?",
+    "ground_truth": "Victor Wembanyama a réalisé le plus de contres (175). Il joue pour SAS (San Antonio Spurs).",
+    "category": "multicriteres",
+    "source_attendue": "excel"
+  },
+  {
+    "id": "B01",
+    "question": "booker 3pt% ??",
+    "ground_truth": "Le 3P% de Devin Booker est de 33,2 %.",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "S01"
+  },
+  {
+    "id": "B02",
+    "question": "herro cb de pts par match en moyene",
+    "ground_truth": "Tyler Herro marque en moyenne 23,9 points par match (1840 points en 77 matchs).",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "S07"
+  },
+  {
+    "id": "B03",
+    "question": "gobert il joue ou",
+    "ground_truth": "Rudy Gobert joue pour MIN (Minnesota Timberwolves).",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "S04"
+  },
+  {
+    "id": "B04",
+    "question": "How many three-pointers does Harden attempt per game?",
+    "ground_truth": "James Harden tente en moyenne 8,5 tirs à 3 points par match (672 tentatives en 79 matchs).",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "S10"
+  },
+  {
+    "id": "B05",
+    "question": "OFFRTG steph curry",
+    "ground_truth": "Le rating offensif (OFFRTG) de Stephen Curry est de 118,4.",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "S03"
+  },
+  {
+    "id": "B06",
+    "question": "top 3 shooteurs a 3pts mini 300 tentatives",
+    "ground_truth": "Les 3 meilleurs 3P% (au moins 300 tentatives) : Zach LaVine (44,6 %), Taurean Prince (43,9 %), Harrison Barnes (43,3 %).",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "M01"
+  },
+  {
+    "id": "B07",
+    "question": "qui a mis le + de points cette saison",
+    "ground_truth": "Shai Gilgeous-Alexander (OKC) a marqué le plus de points : 2485 au total.",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "M02"
+  },
+  {
+    "id": "B08",
+    "question": "meilleurs rebondeurs total saison top3",
+    "ground_truth": "Les 3 meilleurs rebondeurs (total) : Ivica Zubac (1008), Domantas Sabonis (973), Karl-Anthony Towns (922).",
+    "category": "bruitee",
+    "source_attendue": "excel",
+    "variante_de": "M03"
+  },
+  {
+    "id": "T01",
+    "question": "Dans la discussion Reddit sur les équipes qui ont impressionné en playoffs, quels joueurs d'Orlando l'auteur met-il en avant ?",
+    "ground_truth": "L'auteur met en avant Paolo Banchero et Franz Wagner, qu'il décrit comme son duo de jeunes ailiers préféré, taillé pour les playoffs. Malgré une mauvaise adresse, Orlando a poussé le champion en titre dans ses retranchements ; il souhaite que l'équipe recrute de vrais shooteurs et un vrai meneur.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T02",
+    "question": "Selon les commentaires Reddit, quel joueur des Timberwolves a été une révélation en playoffs, et pourquoi ?",
+    "ground_truth": "Julius Randle : les commentateurs saluent son jeu physique en attaque (« bully ball »), ses bonnes lectures face aux prises à deux et son engagement en défense. Il dépasse sa réputation de joueur qui abuse des « spin moves » (la blague « beyblade »).",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T03",
+    "question": "Pourquoi l'auteur d'un post Reddit s'étonne-t-il qu'une finale entre les deux meilleures équipes soit jugée ennuyeuse ?",
+    "ground_truth": "Il s'étonne qu'une finale potentielle entre les deux meilleures équipes des playoffs selon les statistiques avancées soit considérée comme sans intérêt, et en accuse les médias NBA, jugés biaisés, ainsi que le marketing de la ligue, incapable d'intéresser le grand public.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T04",
+    "question": "Quelle critique est faite à Shai Gilgeous-Alexander dans les commentaires Reddit ?",
+    "ground_truth": "Certains commentateurs lui reprochent de simuler et de provoquer les fautes (« flopping »), en le comparant à Embiid, tout en reconnaissant qu'il fait partie des 3 à 5 meilleurs joueurs de la ligue.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T05",
+    "question": "Selon une discussion Reddit, quel joueur est la première option offensive la plus efficace de l'histoire des playoffs, et sur quels critères ?",
+    "ground_truth": "Reggie Miller, selon une analyse fondée sur le total de points en playoffs et l'efficacité au tir relative à son époque (true shooting relatif), comparée à 20 des meilleures premières options de l'histoire.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T06",
+    "question": "Dans la discussion Reddit sur Reggie Miller, quel joueur est le seul à s'approcher de son efficacité ?",
+    "ground_truth": "Kawhi Leonard est présenté comme le seul joueur qui s'approche vraiment de l'efficacité de Reggie Miller.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T07",
+    "question": "Quelle question pose l'auteur du post Reddit sur l'avantage du terrain, et à quelle équipe de hockey fait-il référence ?",
+    "ground_truth": "Il demande quelle équipe NBA a atteint les Finales sans avoir eu l'avantage du terrain lors des trois premiers tours, en référence aux Edmonton Oilers en NHL, qui ont joué ces trois tours sans l'avantage du terrain avant de l'avoir en finale.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "T08",
+    "question": "Quelle est la réponse la plus votée à la question de l'avantage du terrain jusqu'aux Finales NBA ?",
+    "ground_truth": "Selon la réponse la plus votée, six équipes ont atteint les Finales en étant classées au-delà de la 4e place, et aucune n'a eu l'avantage du terrain en finale : la réponse serait donc aucune équipe, au moins dans la NBA moderne.",
+    "category": "textuelle",
+    "source_attendue": "reddit"
+  },
+  {
+    "id": "H01",
+    "question": "Quel joueur a le meilleur pourcentage de réussite à 3 points sur les 5 derniers matchs ?",
+    "ground_truth": "Cette information n'est pas disponible dans les données : elles ne contiennent que des statistiques cumulées sur la saison régulière, pas de résultats match par match.",
+    "category": "hors_donnees",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "H02",
+    "question": "Compare les statistiques de rebonds de l'équipe à domicile et à l'extérieur.",
+    "ground_truth": "Cette information n'est pas disponible dans les données : elles ne distinguent pas les matchs à domicile et à l'extérieur.",
+    "category": "hors_donnees",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "H03",
+    "question": "Combien de points Shai Gilgeous-Alexander a-t-il marqués pendant les playoffs 2025 ?",
+    "ground_truth": "Cette information n'est pas disponible dans les données : elles ne couvrent que la saison régulière, pas les playoffs.",
+    "category": "hors_donnees",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "H04",
+    "question": "Quel est le salaire de Stephen Curry ?",
+    "ground_truth": "Cette information n'est pas disponible dans les données : elles ne contiennent aucune information contractuelle ou salariale.",
+    "category": "hors_donnees",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "H05",
+    "question": "Comment a évolué le pourcentage à 3 points de Stephen Curry par rapport à la saison précédente ?",
+    "ground_truth": "Cette information n'est pas disponible dans les données : elles ne couvrent qu'une seule saison, sans historique.",
+    "category": "hors_donnees",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "H06",
+    "question": "Quelle est la taille de Victor Wembanyama ?",
+    "ground_truth": "Cette information n'est pas disponible dans les données : elles ne contiennent pas de caractéristiques physiques des joueurs.",
+    "category": "hors_donnees",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "O01",
+    "question": "Qui a gagné le tournoi de Roland-Garros en 2025 ?",
+    "ground_truth": "Cette question ne concerne pas la NBA : elle sort du périmètre de l'assistant, qui doit l'indiquer au lieu d'y répondre.",
+    "category": "hors_sujet",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "O02",
+    "question": "Quelle est la recette de la pâte à crêpes ?",
+    "ground_truth": "Cette question ne concerne pas la NBA : elle sort du périmètre de l'assistant, qui doit l'indiquer au lieu d'y répondre.",
+    "category": "hors_sujet",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "O03",
+    "question": "Quelle est la capitale de l'Australie ?",
+    "ground_truth": "Cette question ne concerne pas la NBA : elle sort du périmètre de l'assistant, qui doit l'indiquer au lieu d'y répondre.",
+    "category": "hors_sujet",
+    "source_attendue": "aucune"
+  },
+  {
+    "id": "O04",
+    "question": "Quelle équipe a remporté la Ligue des champions de football en 2025 ?",
+    "ground_truth": "Cette question ne concerne pas la NBA : elle sort du périmètre de l'assistant, qui doit l'indiquer au lieu d'y répondre.",
+    "category": "hors_sujet",
+    "source_attendue": "aucune"
+  }
+]

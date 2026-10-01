@@ -1450,8 +1450,10 @@ source = { virtual = "." }
 dependencies = [
     { name = "easyocr" },
     { name = "faiss-cpu" },
+    { name = "langchain-core" },
     { name = "langchain-text-splitters" },
     { name = "mistralai" },
+    { name = "numpy" },
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "pillow" },
@@ -1468,13 +1470,24 @@ dependencies = [
 dev = [
     { name = "ipykernel" },
 ]
+indexing = [
+    { name = "easyocr" },
+    { name = "pillow" },
+    { name = "pymupdf" },
+    { name = "pypdf2" },
+    { name = "python-docx" },
+    { name = "requests" },
+    { name = "tqdm" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "easyocr", specifier = ">=1.7.2" },
     { name = "faiss-cpu", specifier = ">=1.15.1" },
+    { name = "langchain-core", specifier = ">=1.6.5" },
     { name = "langchain-text-splitters", specifier = ">=1.1.2" },
     { name = "mistralai", specifier = ">=3,<4" },
+    { name = "numpy", specifier = ">=2.5.3" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=3.0.6" },
     { name = "pillow", specifier = ">=12.3.0" },
@@ -1489,6 +1502,15 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "ipykernel", specifier = ">=7.3.0" }]
+indexing = [
+    { name = "easyocr", specifier = ">=1.7.2" },
+    { name = "pillow", specifier = ">=12.3.0" },
+    { name = "pymupdf", specifier = ">=1.28.2" },
+    { name = "pypdf2", specifier = ">=3.0.1" },
+    { name = "python-docx", specifier = ">=1.2.0" },
+    { name = "requests", specifier = ">=2.34.2" },
+    { name = "tqdm", specifier = ">=4.70.1" },
+]
 
 [[package]]
 name = "prompt-toolkit"

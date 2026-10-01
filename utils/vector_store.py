@@ -21,6 +21,7 @@ from .config import (
     EMBEDDING_MODEL,
     FAISS_INDEX_FILE,
     MISTRAL_API_KEY,
+    MISTRAL_RETRY_CONFIG
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -32,7 +33,7 @@ class VectorStoreManager:
     def __init__(self):
         self.index: Optional[faiss.Index] = None
         self.document_chunks: List[Dict[str, Any]] = []
-        self.mistral_client = Mistral(api_key=MISTRAL_API_KEY)
+        self.mistral_client = Mistral(api_key=MISTRAL_API_KEY,retry_config=MISTRAL_RETRY_CONFIG)
         self._load_index_and_chunks()
 
     # ------------------------------------------------------------------ #

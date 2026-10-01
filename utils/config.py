@@ -38,3 +38,19 @@ DATABASE_URL = f"sqlite:///{DATABASE_FILE}" # URL pour SQLAlchemy
 # --- Configuration de l'Application ---
 APP_TITLE = "NBA Analyst AI"
 NAME = "NBA" # Nom à personnaliser dans l'interface
+
+# --- Relance automatique des appels à l'API Mistral ---
+# En cas d'erreur 429 (limite de débit) ou 500/502/503/504 (serveur),
+# le SDK réessaie automatiquement en espaçant de plus en plus les tentatives.
+from mistralai.client.utils import BackoffStrategy, RetryConfig
+
+MISTRAL_RETRY_CONFIG = RetryConfig(
+    strategy="backoff",
+    backoff=BackoffStrategy(
+        initial_interval=1000,     # 1er délai d'attente : 1 s (valeurs en millisecondes)
+        max_interval=30000,        # délai maximum entre deux essais : 30 s
+        exponent=2.0,              # le délai double à chaque essai : 1 s, 2 s, 4 s, 8 s...
+        max_elapsed_time=120000,   # abandon après 2 min au total
+    ),
+    retry_connection_errors=True,  # réessayer aussi en cas de coupure réseau
+)
