@@ -15,11 +15,14 @@ if not MISTRAL_API_KEY:
 # --- Modèles Mistral ---
 EMBEDDING_MODEL = "mistral-embed"
 MODEL_NAME = "ministral-3b-2512" # Ou un autre modèle comme mistral-large-latest
+JUDGE_MODEL = "ministral-14b-2512" 
 
 # --- Configuration de l'Indexation ---
 # INPUT_DATA_URL = os.getenv("INPUT_DATA_URL") # Décommentez si vous utilisez une URL
 INPUT_DIR = "inputs"                # Dossier pour les données sources après extraction
-VECTOR_DB_DIR = "vector_db"         # Dossier pour stocker l'index Faiss et les chunks
+# Dossier de l'index FAISS : "vector_db" par défaut (index d'origine, v0).
+# Peut être changé au lancement via la variable d'environnement VECTOR_DB_DIR (ex. vector_db_v1).
+VECTOR_DB_DIR = os.getenv("VECTOR_DB_DIR", "vector_db")
 FAISS_INDEX_FILE = os.path.join(VECTOR_DB_DIR, "faiss_index.idx")
 DOCUMENT_CHUNKS_FILE = os.path.join(VECTOR_DB_DIR, "document_chunks.pkl")
 
