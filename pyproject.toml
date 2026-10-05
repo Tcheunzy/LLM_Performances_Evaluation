@@ -14,11 +14,13 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pandas>=3.0.6",
     "pillow>=12.3.0",
+    "pydantic>=2.13.5",
     "pymupdf>=1.28.2",
     "pypdf2>=3.0.1",
     "python-docx>=1.2.0",
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
+    "rich>=14.3.4",
     "streamlit>=1.64.0",
     "tqdm>=4.70.1",
 ]
@@ -26,6 +28,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
+]
+eval = [
+    "langchain-community<0.4",
+    "langchain-mistralai>=1.1.6",
+    "ragas>=0.4.3",
+    "rich>=14.3.4",
 ]
 indexing = [
     "easyocr>=1.7.2",
@@ -36,3 +44,5 @@ indexing = [
     "requests>=2.34.2",
     "tqdm>=4.70.1",
 ]
+[tool.uv]
+override-dependencies = ["scikit-network; sys_platform == 'never'"]

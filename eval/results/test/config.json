@@ -1,0 +1,8 @@
+{
+  "version": "test",
+  "date": "2026-10-02T12:41:04",
+  "modele_evalue": "ministral-3b-2512",
+  "modele_juge": "ministral-14b-2512",
+  "modele_embeddings": "mistral-embed",
+  "nb_questions": 5
+}
