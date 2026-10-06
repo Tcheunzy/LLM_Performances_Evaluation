@@ -1,0 +1,17 @@
+
+=== Test 1 : intégrité de l'index (cosinus attendu ≈ 1.00)
+  chunk   0 (Reddit 1.pdf) : cosinus = 1.0000
+  chunk 150 (regular NBA.xlsx (Joueur: Dyson Daniels)) : cosinus = 1.0000
+  chunk 300 (regular NBA.xlsx (Joueur: Ronald Holland II)) : cosinus = 1.0000
+
+=== Test 2 : top-5 pour « Quel est le 3P% de James Harden ? »
+   78.9 %  regular NBA.xlsx (Joueur: James Harden)        contient 'Harden' : True
+   73.8 %  regular NBA.xlsx (Joueur: Isaiah Hartenstein)  contient 'Harden' : False
+   73.7 %  regular NBA.xlsx (Joueur: Tari Eason)          contient 'Harden' : False
+   73.5 %  regular NBA.xlsx (Joueur: Jimmy Butler III)    contient 'Harden' : False
+   73.5 %  regular NBA.xlsx (Joueur: Jalen Green)         contient 'Harden' : False
+
+=== Test 3 : le chunk avec la ligne de Harden (n°84) est classé 1e / 644 (score 78.9 %)
+  (le LLM ne voit que les 5 premiers)
+  Ce que contient ce chunk pour Harden :
+  Statistiques de saison régulière NBA — Joueur : James Harden | Équipe : LAC (Los Angeles Clippers) | Âge : 35 | Matchs joués (GP) : 79 | Victoires de l'équipe l...

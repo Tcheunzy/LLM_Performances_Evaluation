@@ -48,7 +48,8 @@ for r in m.search(QUESTION, k=5):
 # --- Test 3 : où se classe le chunk qui contient la bonne réponse ? ---------------
 target = next(
     i for i, c in enumerate(m.document_chunks)
-    if "James Harden" in c["text"] and "Données NBA" in c["metadata"]["source"]
+    if "James Harden" in c["text"]
+    and ("Données NBA" in c["metadata"]["source"] or "Joueur: James Harden" in c["metadata"]["source"])
 )
 ranking = m.search(QUESTION, k=len(m.document_chunks))
 rank = next(pos for pos, r in enumerate(ranking, 1) if r["text"] == m.document_chunks[target]["text"])
