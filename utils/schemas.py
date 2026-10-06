@@ -55,7 +55,7 @@ class RawDocument(BaseModel):
 class Chunk(BaseModel):
     """Un morceau de document prêt à être vectorisé."""
     id: str
-    text: str = Field(min_length=20, max_length=2000)              
+    text: str = Field(min_length=20, max_length=2500)              
     source: str
     doc_type: DocType
 
@@ -77,3 +77,19 @@ class EmbeddedChunk(BaseModel):
         if not any(v != 0 for v in self.embedding):
             raise ValueError("Vecteur d'embedding entièrement nul (échec probable de l'API)")
         return self
+
+class ReponseAssistant(BaseModel):
+    """Sortie structurée imposée au LLM par l'agent Pydantic AI."""
+
+    reponse: str = Field(
+        description="Réponse à la question, fondée uniquement sur le contexte, en français."
+    )
+    sources: list[str] = Field(
+        default_factory=list,
+        description="Sources du contexte réellement utilisées, recopiées telles qu'indiquées "
+                    "(ex. « regular NBA.xlsx (Joueur: James Harden) »).",
+    )
+    information_disponible: bool = Field(
+        description="True si le contexte contient l'information demandée, False sinon "
+                    "(information absente des données ou question hors du périmètre NBA).",
+    )

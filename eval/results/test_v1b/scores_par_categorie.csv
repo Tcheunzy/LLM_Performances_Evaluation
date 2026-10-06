@@ -1,0 +1,3 @@
+﻿category,faithfulness,answer_relevancy,context_precision,context_recall,answer_correctness
+simple,1.0,0.953,1.0,1.0,0.74
+GLOBAL,1.0,0.953,1.0,1.0,0.74

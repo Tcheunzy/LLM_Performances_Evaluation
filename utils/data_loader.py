@@ -1,6 +1,7 @@
 # utils/data_loader.py
 import os
 import requests
+import pandas as pd
 import zipfile
 import io
 from pathlib import Path
@@ -8,6 +9,12 @@ from typing import List, Dict, Optional, Union
 import logging
 import numpy as np
 from tqdm import tqdm # Ajout de tqdm
+from pydantic import ValidationError
+
+from utils.formatage_joueur import joueur_vers_texte
+from utils.schemas import PlayerStats, RawDocument
+from utils.nettoyage_ocr import nettoyer_texte_ocr
+
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -179,6 +186,55 @@ def extract_text_from_excel(file_path: str) -> Optional[Union[str, Dict[str, str
         logging.error(f"Erreur extraction Excel {file_path}: {e}")
         return None
 
+FEUILLE_JOUEURS = "Données NBA"
+FEUILLE_EQUIPES = "Equipe"
+FEUILLES_IGNOREES = {"Analyse", "Analyse Vide", "Dictionnaire des données"}
+
+
+def extract_documents_from_excel(file_path: str) -> list[RawDocument]:
+    """Excel « regular NBA » (v1) : un document par joueur validé + un document pour la table des équipes."""
+    filename = Path(file_path).name
+    excel = pd.ExcelFile(file_path)
+    documents: list[RawDocument] = []
+
+    # 1. Table des équipes : un document « tableau » lisible (code -> nom complet)
+    equipes = excel.parse(FEUILLE_EQUIPES)
+    noms_equipes = dict(zip(equipes.iloc[:, 0], equipes.iloc[:, 1]))
+    texte_equipes = "Liste des équipes NBA (code à 3 lettres : nom complet) — " + " | ".join(
+        f"{code} : {nom}" for code, nom in noms_equipes.items()
+    )
+    documents.append(RawDocument(
+        page_content=texte_equipes,
+        source=f"{filename} (Feuille: {FEUILLE_EQUIPES})",
+        filename=filename,
+        doc_type="tableau",
+    ))
+
+    # 2. Joueurs : nettoyage, validation Pydantic ligne par ligne, un document par joueur
+    df = excel.parse(FEUILLE_JOUEURS, header=1)                        # vrais en-têtes sur la 2e ligne
+    df = df.loc[:, [c for c in df.columns if not str(c).startswith("Unnamed")]]
+    colonne_heure = [c for c in df.columns if not isinstance(c, str)]  # « 3PM » converti en 15:00:00 par Excel
+    df = df.rename(columns={colonne_heure[0]: "3PM"})
+
+    rejets = 0
+    for ligne in df.to_dict("records"):
+        try:
+            joueur = PlayerStats.model_validate(ligne)
+        except ValidationError as e:
+            rejets += 1
+            logging.warning(f"Joueur rejeté ({ligne.get('Player')}) : {e.errors()[0]['msg']}")
+            continue
+        documents.append(RawDocument(
+            page_content=joueur_vers_texte(ligne, noms_equipes),
+            source=f"{filename} (Joueur: {joueur.player})",
+            filename=filename,
+            doc_type="joueur",
+        ))
+
+    ignorees = [f for f in excel.sheet_names if f in FEUILLES_IGNOREES]
+    logging.info(f"{filename} : {len(documents) - 1} joueurs, {rejets} rejetés, feuilles ignorées : {', '.join(ignorees)}")
+    return documents
+
 # --- Fonctions de chargement ---
 
 def download_and_extract_zip(url: str, output_dir: str) -> bool:
@@ -231,7 +287,24 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
 
             extracted_content = None
             if ext == ".pdf":
-                extracted_content = extract_text_from_pdf(str(file_path))
+                texte = extract_text_from_pdf(str(file_path))
+                if texte:
+                    doc = RawDocument(
+                        page_content=nettoyer_texte_ocr(texte),
+                        source=str(relative_path),
+                        filename=file_path.name,
+                        doc_type="texte",
+                    )
+                    documents.append({
+                        "page_content": doc.page_content,
+                        "metadata": {
+                            "source": doc.source,
+                            "filename": doc.filename,
+                            "doc_type": doc.doc_type,
+                            "category": source_folder,
+                        },
+                    })
+                continue
             elif ext == ".docx":
                 extracted_content = extract_text_from_docx(str(file_path))
             elif ext == ".txt":
@@ -239,7 +312,19 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
             elif ext == ".csv":
                 extracted_content = extract_text_from_csv(str(file_path))
             elif ext in [".xlsx", ".xls"]:
-                extracted_content = extract_text_from_excel(str(file_path))
+                for doc in extract_documents_from_excel(str(file_path)):
+                    if file_path.name.startswith("~$"):
+                        continue
+                    documents.append({
+                        "page_content": doc.page_content,
+                        "metadata": {
+                            "source": doc.source,
+                            "filename": doc.filename,
+                            "doc_type": doc.doc_type,
+                            "category": source_folder,
+                        },
+                    })
+                continue
             # Suppression de la gestion des fichiers HTML
             else:
                 logging.warning(f"Type de fichier non supporté ignoré: {relative_path}")

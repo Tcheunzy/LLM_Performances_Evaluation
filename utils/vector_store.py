@@ -5,7 +5,8 @@ import logging
 import os
 import pickle
 from typing import Any, Dict, List, Optional
-
+from pydantic import ValidationError
+from .schemas import Chunk, EmbeddedChunk
 import faiss
 import numpy as np
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -80,36 +81,47 @@ class VectorStoreManager:
     # Indexation
     # ------------------------------------------------------------------ #
     def _split_documents_to_chunks(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Découpe les documents en chunks avec métadonnées."""
-        logging.info(
-            f"Découpage de {len(documents)} documents en chunks "
-            f"(taille={CHUNK_SIZE}, chevauchement={CHUNK_OVERLAP})..."
-        )
+        """Découpe les documents en chunks validés par Pydantic.
+
+        v1 : les documents « joueur » ne sont PAS redécoupés (1 joueur = 1 chunk, ~1 900 caractères) ;
+        les textes (PDF) et tableaux gardent le découpage d'origine (CHUNK_SIZE / CHUNK_OVERLAP).
+        """
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
             chunk_overlap=CHUNK_OVERLAP,
-            length_function=len,  # Mesure en caractères
-            add_start_index=True,  # Position de début du chunk dans le document original
+            length_function=len,
+            add_start_index=True,
         )
 
-        all_chunks = []
+        all_chunks, rejets = [], 0
         for doc_counter, doc in enumerate(documents):
-            langchain_doc = Document(page_content=doc["page_content"], metadata=doc["metadata"])
-            chunks = text_splitter.split_documents([langchain_doc])
-            logging.info(f"  Document '{doc['metadata'].get('filename', 'N/A')}' découpé en {len(chunks)} chunks.")
+            metadata = doc["metadata"]
+            doc_type = metadata.get("doc_type", "texte")
 
-            for i, chunk in enumerate(chunks):
+            if doc_type == "joueur":
+                morceaux = [(doc["page_content"], 0)]
+            else:
+                langchain_doc = Document(page_content=doc["page_content"], metadata=metadata)
+                morceaux = [
+                    (c.page_content, c.metadata.get("start_index", -1))
+                    for c in text_splitter.split_documents([langchain_doc])
+                ]
+
+            for i, (texte, start_index) in enumerate(morceaux):
+                try:
+                    chunk = Chunk(id=f"{doc_counter}_{i}", text=texte,
+                                  source=metadata["source"], doc_type=doc_type)
+                except ValidationError as e:
+                    rejets += 1
+                    logging.warning(f"Chunk rejeté ({metadata['source']}, n°{i}) : {e.errors()[0]['msg']}")
+                    continue
                 all_chunks.append({
-                    "id": f"{doc_counter}_{i}",  # doc_index_chunk_index
-                    "text": chunk.page_content,
-                    "metadata": {
-                        **chunk.metadata,  # source, category, filename, etc.
-                        "chunk_id_in_doc": i,
-                        "start_index": chunk.metadata.get("start_index", -1),
-                    },
+                    "id": chunk.id,
+                    "text": chunk.text,
+                    "metadata": {**metadata, "chunk_id_in_doc": i, "start_index": start_index},
                 })
 
-        logging.info(f"Total de {len(all_chunks)} chunks créés.")
+        logging.info(f"{len(all_chunks)} chunks créés, {rejets} rejetés par la validation.")
         return all_chunks
 
     def _generate_embeddings(self, chunks: List[Dict[str, Any]]) -> Optional[np.ndarray]:
@@ -174,6 +186,28 @@ class VectorStoreManager:
 
         # 2. Générer les embeddings
         embeddings = self._generate_embeddings(self.document_chunks)
+        # 2b. Validation Pydantic : chaque couple (chunk, vecteur) doit être exploitable.
+        # On filtre les deux listes ENSEMBLE pour conserver la correspondance « vecteur n°i = chunk n°i ».
+        chunks_valides, vecteurs_valides = [], []
+        for chunk_dict, vecteur in zip(self.document_chunks, embeddings):
+            try:
+                EmbeddedChunk(
+                    chunk=Chunk(id=chunk_dict["id"], text=chunk_dict["text"],
+                                source=chunk_dict["metadata"]["source"],
+                                doc_type=chunk_dict["metadata"].get("doc_type", "texte")),
+                    embedding=vecteur.tolist(),
+                )
+            except ValidationError as e:
+                logging.warning(f"Embedding rejeté (chunk {chunk_dict['id']}) : {e.errors()[0]['msg']}")
+                continue
+            chunks_valides.append(chunk_dict)
+            vecteurs_valides.append(vecteur)
+
+        if not chunks_valides:
+            logging.error("Aucun embedding valide : index non créé.")
+            return
+        self.document_chunks = chunks_valides
+        embeddings = np.array(vecteurs_valides, dtype="float32")
         if embeddings is None or embeddings.shape[0] != len(self.document_chunks):
             logging.error("Le nombre d'embeddings ne correspond pas au nombre de chunks.")
             self.document_chunks = []

@@ -4,11 +4,27 @@ from utils.config import MISTRAL_API_KEY,MODEL_NAME,SEARCH_K, MISTRAL_RETRY_CONF
 from utils.vector_store import VectorStoreManager
 from mistralai.client import Mistral
 
+from pydantic_ai import Agent
+from pydantic_ai.models.mistral import MistralModel
+from pydantic_ai.providers.mistral import MistralProvider
+
+from utils.schemas import ReponseAssistant
+import logfire
+
+# Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
+PIPELINE_DESCRIPTION = "v1b : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant)"
+
 # --- Configuration du logging ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(module)s - %(message)s",
 )
+
+# --- Observabilité : Logfire ---
+# send_to_logfire="if-token-present" : les traces partent vers Logfire si un projet est configuré,
+# sinon le pipeline fonctionne normalement sans rien envoyer (utile pour un clone du dépôt).
+logfire.configure(service_name="sportsee-assistant", send_to_logfire="if-token-present")
+logfire.instrument_pydantic_ai()   # trace automatiquement chaque appel de l'agent (prompt, réponse, tokens, durée)
 
 #On instancie d'abord le client mistral.
 def get_mistral_client(api_key: str) -> Mistral:
@@ -39,7 +55,7 @@ vector_store_manager = get_vector_store_manager()
 #Prompt système.
 # --- Prompt RAG (prototype d'origine, conservé tel quel pour la baseline) ---
 # Chaîne classique (pas une f-string) : {context_str} et {question} sont remplis avec .format()
-SYSTEM_PROMPT = """Tu es 'NBA Analyst AI', un assistant expert sur la ligue de basketball NBA.
+SYSTEM_PROMPT_V0 = """Tu es 'NBA Analyst AI', un assistant expert sur la ligue de basketball NBA.
 Ta mission est de répondre aux questions des fans en animant le débat.
 
 ---
@@ -50,6 +66,50 @@ QUESTION DU FAN:
 {question}
 
 RÉPONSE DE L'ANALYSTE NBA:"""
+
+SYSTEM_PROMPT_V1 = """Tu es l'assistant d'analyse de performance de SportSee. Tu aides les entraîneurs, \
+analystes et préparateurs physiques d'un club de basketball à retrouver rapidement des informations fiables \
+sur la saison régulière NBA.
+
+RÈGLES IMPÉRATIVES
+1. Réponds UNIQUEMENT à partir des documents fournis dans le contexte. N'utilise jamais tes connaissances \
+générales, même si tu penses connaître la réponse.
+2. Si le contexte ne contient pas l'information demandée, dis-le explicitement \
+(« Cette information n'est pas disponible dans les données. »), sans proposer d'estimation.
+3. Si la question ne concerne pas la NBA, indique qu'elle sort de ton périmètre, sans y répondre.
+4. Reprends les chiffres exactement tels qu'ils figurent dans le contexte. Distingue les totaux sur la \
+saison et les moyennes par match, comme l'indiquent les libellés. Ne fais un calcul que s'il est simple, \
+et précise alors comment tu l'as obtenu.
+5. Les données couvrent une seule saison régulière, en statistiques cumulées par joueur : elles ne \
+contiennent ni résultats match par match, ni distinction domicile / extérieur, ni playoffs.
+6. Les extraits Reddit sont des opinions de fans : présente-les comme telles (« selon des commentaires \
+Reddit… »), jamais comme des faits.
+
+FORMAT
+- Réponse directe en premier, en une à trois phrases. Ajoute des détails seulement s'ils sont utiles.
+- Cite la ou les sources utilisées entre crochets, par exemple [regular NBA.xlsx (Joueur: James Harden)].
+- Ton professionnel et factuel, en français, sans émojis."""
+
+USER_PROMPT_V1 = """CONTEXTE :
+---
+{context_str}
+---
+
+QUESTION :
+{question}"""
+
+
+
+# Agent Pydantic AI : même client Mistral (avec relances), sortie validée par ReponseAssistant
+modele_llm = MistralModel(MODEL_NAME, provider=MistralProvider(mistral_client=client))
+
+agent = Agent(
+    modele_llm,
+    output_type=ReponseAssistant,      # le LLM DOIT renvoyer un objet conforme à ce modèle
+    instructions=SYSTEM_PROMPT_V1,     # le prompt système orienté coachs
+    retries=2,                         # si la sortie est invalide, l'agent redemande (2 fois max)
+    model_settings={"temperature": 0.1},
+)
 
 
 #Formatage du contexte donné par le retriever.
@@ -93,26 +153,57 @@ def generer_reponse(prompt_messages: list[dict]) -> str:
 
 
 #Ajout de la fonction answer() qui sert à l'orchestration du pipeline.
-def answer(question):
-    #On effectue la recherche des chunks
-    logging.info(f"Recherche de contexte pour la question : '{question}' avec k={SEARCH_K}")
-    search_results = vector_store_manager.search(question, k=SEARCH_K)
+MESSAGE_ERREUR = "Je suis désolé, une erreur technique m'empêche de répondre. Veuillez réessayer plus tard."
 
-    #formatage du contexte et injection dans le prompt
-    context_str = formater_contexte(search_results)
-    final_prompt_for_llm = SYSTEM_PROMPT.format(context_str=context_str, question=question)
-    messages_for_api = [{"role": "user", "content": final_prompt_for_llm}]
-    response_content = generer_reponse(messages_for_api)
-    return {"answer":response_content, 
-            "contexts": [r["text"] for r in search_results],
-            "sources" : search_results,            
+
+def answer(question: str) -> dict:
+    with logfire.span("answer", question=question):
+
+        # 1. Retrieval
+        with logfire.span("retrieval", k=SEARCH_K) as span:
+            search_results = vector_store_manager.search(question, k=SEARCH_K)
+            span.set_attribute("sources", [r["metadata"].get("source") for r in search_results])
+            span.set_attribute("scores", [round(r["score"], 1) for r in search_results])
+
+        # 2. Construction du prompt
+        with logfire.span("prompt_building"):
+            context_str = formater_contexte(search_results)
+            user_prompt = USER_PROMPT_V1.format(context_str=context_str, question=question)
+
+        # 3. Génération + validation (l'agent est tracé automatiquement par instrument_pydantic_ai)
+        try:
+            resultat = agent.run_sync(user_prompt)
+            sortie = resultat.output
+            reponse = sortie.reponse
+        except Exception:
+            logfire.exception("Erreur de l'agent Pydantic AI")
+            logging.exception("Erreur de l'agent Pydantic AI")
+            sortie, reponse = None, MESSAGE_ERREUR
+
+        # 4. Bilan de la réponse
+        logfire.info(
+            "Réponse produite",
+            information_disponible=sortie.information_disponible if sortie else None,
+            nb_sources_citees=len(sortie.sources) if sortie else 0,
+            erreur=sortie is None,
+        )
+
+    return {
+        "answer": reponse,
+        "contexts": [r["text"] for r in search_results],
+        "sources": search_results,
+        "information_disponible": sortie.information_disponible if sortie else None,
+        "sources_citees": sortie.sources if sortie else [],
     }
 
+
 if __name__ == "__main__":
-    result = answer("Quel est le 3P% de James Harden ?")
+    result = answer("Qui a gagné Roland-Garros en 2025 ?")
 
     print("\n=== RÉPONSE ===")
     print(result["answer"])
+    print(f"\nInformation disponible : {result['information_disponible']}")
+    print(f"Sources citées : {result['sources_citees']}")
 
     print(f"\n=== CONTEXTES RÉCUPÉRÉS ({len(result['contexts'])}) ===")
     for s in result["sources"]:

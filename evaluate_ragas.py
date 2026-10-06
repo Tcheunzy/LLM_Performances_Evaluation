@@ -23,6 +23,7 @@ from utils.config import (
     JUDGE_MODEL,
     VECTOR_DB_DIR,
 )
+from rag_pipeline import PIPELINE_DESCRIPTION, answer
 
 #Instanciation du module argparse pour le versionning des évaluations en fonction de ce qu'on évalue (notion de version du prototype):
 parser = argparse.ArgumentParser(description="Evaluation RAGAS de l'assistant NBA")
@@ -54,14 +55,17 @@ juge_embeddings = LangchainEmbeddingsWrapper(
 #Création des listes vides acceuillant les réponses et le contextes
 responses=[]
 contextes=[]
+disponibles=[]
 
 for q in track(df["question"], description="Traitement des données"):
     result = answer(q)
     responses.append(result["answer"])
     contextes.append(result["contexts"])
+    disponibles.append(result.get("information_disponible"))   # None pour les versions sans agent
 
 df["answer"] = responses
 df["contexts"] = contextes
+df["information_disponible"] = disponibles
 
 #Ajout gestion d'erreur
 MESSAGE_ERREUR = "Je suis désolé, une erreur technique"
@@ -71,6 +75,11 @@ print(f"Réponses en erreur : {df['erreur'].sum()} / {len(df)}")
 file_path = OUTPUT_DIR / "reponses.json"
 df.to_json(file_path, orient="records", indent=2, force_ascii=False)
 
+# Taux de refus correct : questions hors données / hors sujet pour lesquelles l'assistant a signalé l'absence d'information
+refus = df[df["category"].isin(["hors_donnees", "hors_sujet"])]
+if refus["information_disponible"].notna().any():
+    nb_refus = (refus["information_disponible"] == False).sum()  # noqa: E712
+    print(f"Taux de refus correct : {nb_refus} / {len(refus)}")
 
 #Sauvegarde de la configuration de l'évaluation (traçabilité)
 config_eval = {
@@ -81,6 +90,8 @@ config_eval = {
     "modele_embeddings": EMBEDDING_MODEL,
     "nb_questions": len(df),
     "index_vectoriel": VECTOR_DB_DIR,
+    "prompt": "SYSTEM_PROMPT_V1 + agent Pydantic AI",
+    "pipeline": PIPELINE_DESCRIPTION,
 }
 with open(OUTPUT_DIR / "config.json", "w", encoding="utf-8") as f:
     json.dump(config_eval, f, ensure_ascii=False, indent=2)
