@@ -1,11 +1,13 @@
 # utils/schemas.py — modèles Pydantic : le « contrat » de chaque donnée du pipeline
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+import unicodedata
 
+from pydantic import ValidationInfo, field_validator
 
 class PlayerStats(BaseModel): #Modèle Pydantic
     """Une ligne de joueur de la feuille « Données NBA » (statistiques cumulées sur la saison)."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore") #populate_by_name permet de créer l'objet alias ou avec le nom Python choisi
+    model_config = ConfigDict(populate_by_name=True, extra="ignore") #populate_by_name permet de créer l'objet alias ou avec le nom Python choisi, extra ignore permet de ne pas prendre en compte la levée d'erreur pour de potentiels nouvelles colonnes passant dans la validation qui ne présentent pas de règle sûre.
 
     player: str = Field(alias="Player", min_length=2) #nom pyhton, complété avec alias qui ramene au nom de la variable sur le tableur d'inputs
     team: str = Field(alias="Team", min_length=3, max_length=3)
@@ -78,18 +80,52 @@ class EmbeddedChunk(BaseModel):
             raise ValueError("Vecteur d'embedding entièrement nul (échec probable de l'API)")
         return self
 
+def _normaliser_source(texte: str) -> str:
+    """Rend la comparaison des sources tolérante : crochets, guillemets, casse et espaces ignorés."""
+    texte = unicodedata.normalize("NFKC", texte).strip().strip("[]«»\"' ").lower()
+    return " ".join(texte.split())
+
+
 class ReponseAssistant(BaseModel):
-    """Sortie structurée imposée au LLM par l'agent Pydantic AI."""
+    """Sortie structurée imposée au LLM par l'agent Pydantic AI, avec contrôle de cohérence."""
 
     reponse: str = Field(
         description="Réponse à la question, fondée uniquement sur le contexte, en français."
     )
     sources: list[str] = Field(
         default_factory=list,
-        description="Sources du contexte réellement utilisées, recopiées telles qu'indiquées "
-                    "(ex. « regular NBA.xlsx (Joueur: James Harden) »).",
+        description="Sources du contexte réellement utilisées, recopiées EXACTEMENT telles qu'indiquées "
+                    "après « Source: » (ex. « regular NBA.xlsx (Joueur: James Harden) »). "
+                    "Liste vide si l'information n'est pas disponible.",
     )
     information_disponible: bool = Field(
         description="True si le contexte contient l'information demandée, False sinon "
                     "(information absente des données ou question hors du périmètre NBA).",
     )
+
+    @field_validator("reponse")
+    @classmethod
+    def reponse_non_vide(cls, valeur: str) -> str:
+        if not valeur.strip():
+            raise ValueError("La réponse est vide.")
+        return valeur.strip()
+
+    @model_validator(mode="after")
+    def verifier_coherence(self, info: ValidationInfo):
+        # 1. Une réponse affirmative doit être sourcée
+        if self.information_disponible and not self.sources:
+            raise ValueError("information_disponible=True mais aucune source citée : "
+                             "cite au moins une source du contexte.")
+        # 2. Un refus ne cite aucune source
+        if not self.information_disponible and self.sources:
+            raise ValueError("information_disponible=False mais des sources sont citées : "
+                             "un refus ne cite aucune source.")
+        # 3. Les sources citées doivent exister dans le contexte fourni (si on le connaît)
+        autorisees = (info.context or {}).get("sources_autorisees")
+        if autorisees is not None:
+            valides = {_normaliser_source(s) for s in autorisees}
+            inconnues = [s for s in self.sources if _normaliser_source(s) not in valides]
+            if inconnues:
+                raise ValueError(f"Sources absentes du contexte : {inconnues}. "
+                                 f"Sources autorisées : {sorted(autorisees)}")
+        return self

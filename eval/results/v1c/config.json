@@ -1,11 +1,11 @@
 {
-  "version": "test_v1b",
-  "date": "2026-10-06T13:18:03",
+  "version": "v1c",
+  "date": "2026-10-08T14:10:52",
   "modele_evalue": "ministral-3b-2512",
   "modele_juge": "ministral-14b-2512",
   "modele_embeddings": "mistral-embed",
-  "nb_questions": 5,
+  "nb_questions": 50,
   "index_vectoriel": "vector_db_v1",
   "prompt": "SYSTEM_PROMPT_V1 + agent Pydantic AI",
-  "pipeline": "v1b : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant)"
+  "pipeline": "v1c : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant) + ajustement de sécurité"
 }

@@ -40,13 +40,13 @@ def nettoyer_texte_ocr(texte: str, max_repetitions: int = 3) -> str:
     deja_vues: set[str] = set()
     gardees = []
     for ligne in lignes:
-        if not ligne or ligne.lower() in LIGNES_INTERFACE:
+        if not ligne or ligne.lower() in LIGNES_INTERFACE:# filtre 1 : ligne vide ou ligne d'interface
             continue
-        if any(m.search(ligne) for m in MOTIFS_BRUIT):
+        if any(m.search(ligne) for m in MOTIFS_BRUIT): # filtre 2 : au moins un motif reconnaît la lign
             continue
-        if frequences[ligne] > max_repetitions:
-            if ligne in deja_vues:
+        if frequences[ligne] > max_repetitions: # filtre 3 : ligne répétée plus de 3 fois…
+            if ligne in deja_vues:  #   …et déjà gardée une fois -> on la jette
                 continue
-            deja_vues.add(ligne)
-        gardees.append(ligne)
+            deja_vues.add(ligne)   #   …première fois -> on la note et on la garde
+        gardees.append(ligne)      # la ligne a passé les 3 filtres
     return "\n".join(gardees)

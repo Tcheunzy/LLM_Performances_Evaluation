@@ -12,7 +12,7 @@ from utils.schemas import ReponseAssistant
 import logfire
 
 # Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
-PIPELINE_DESCRIPTION = "v1b : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant)"
+PIPELINE_DESCRIPTION = "v1c : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant) + ajustement de sécurité"
 
 # --- Configuration du logging ---
 logging.basicConfig(
@@ -105,10 +105,12 @@ modele_llm = MistralModel(MODEL_NAME, provider=MistralProvider(mistral_client=cl
 
 agent = Agent(
     modele_llm,
-    output_type=ReponseAssistant,      # le LLM DOIT renvoyer un objet conforme à ce modèle
-    instructions=SYSTEM_PROMPT_V1,     # le prompt système orienté coachs
-    retries=2,                         # si la sortie est invalide, l'agent redemande (2 fois max)
+    output_type=ReponseAssistant,                                           # le LLM DOIT renvoyer un objet conforme à ce modèle
+    instructions=SYSTEM_PROMPT_V1,                                          # le prompt système orienté coachs
+    retries=2,                                                              # si la sortie est invalide, l'agent redemande (2 fois max)
     model_settings={"temperature": 0.1},
+    deps_type=list,                                                         # les sources de la question
+    validation_context=lambda ctx: {"sources_autorisees": ctx.deps},        # transmises au validateur
 )
 
 
@@ -172,7 +174,8 @@ def answer(question: str) -> dict:
 
         # 3. Génération + validation (l'agent est tracé automatiquement par instrument_pydantic_ai)
         try:
-            resultat = agent.run_sync(user_prompt)
+            sources_recuperees = [r["metadata"].get("source") for r in search_results]
+            resultat = agent.run_sync(user_prompt, deps=sources_recuperees)
             sortie = resultat.output
             reponse = sortie.reponse
         except Exception:
@@ -182,7 +185,9 @@ def answer(question: str) -> dict:
 
         # 4. Bilan de la réponse
         logfire.info(
-            "Réponse produite",
+            "Réponse produite: {reponse}",
+            reponse=reponse,
+            sources_citees=sortie.sources if sortie else [],
             information_disponible=sortie.information_disponible if sortie else None,
             nb_sources_citees=len(sortie.sources) if sortie else 0,
             erreur=sortie is None,
@@ -198,13 +203,14 @@ def answer(question: str) -> dict:
 
 
 if __name__ == "__main__":
-    result = answer("Qui a gagné Roland-Garros en 2025 ?")
-
-    print("\n=== RÉPONSE ===")
-    print(result["answer"])
-    print(f"\nInformation disponible : {result['information_disponible']}")
-    print(f"Sources citées : {result['sources_citees']}")
-
-    print(f"\n=== CONTEXTES RÉCUPÉRÉS ({len(result['contexts'])}) ===")
-    for s in result["sources"]:
-        print(f"- {s['score']:.1f} % | {s['metadata'].get('source')} | {s['text'][:100]!r}")
+    questions = [
+        "Quel est le 3P% de James Harden ?",                                              # simple
+        "Quel joueur a le meilleur pourcentage à 3 points sur les 5 derniers matchs ?",   # hors données
+        "Qui a gagné Roland-Garros en 2025 ?",                                            # hors sujet
+    ]
+    for question in questions:
+        result = answer(question)
+        print(f"\n=== {question}")
+        print(f"Réponse : {result['answer']}")
+        print(f"Information disponible : {result['information_disponible']}")
+        print(f"Sources citées : {result['sources_citees']}")

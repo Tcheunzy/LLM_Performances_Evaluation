@@ -1,6 +1,7 @@
 # utils/config.py
 import os
 from dotenv import load_dotenv
+from mistralai.client.utils import BackoffStrategy, RetryConfig
 
 # Charger les variables d'environnement du fichier .env
 load_dotenv()
@@ -45,7 +46,7 @@ NAME = "NBA" # Nom à personnaliser dans l'interface
 # --- Relance automatique des appels à l'API Mistral ---
 # En cas d'erreur 429 (limite de débit) ou 500/502/503/504 (serveur),
 # le SDK réessaie automatiquement en espaçant de plus en plus les tentatives.
-from mistralai.client.utils import BackoffStrategy, RetryConfig
+
 
 MISTRAL_RETRY_CONFIG = RetryConfig(
     strategy="backoff",

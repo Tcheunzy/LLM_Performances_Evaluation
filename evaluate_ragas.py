@@ -24,6 +24,7 @@ from utils.config import (
     VECTOR_DB_DIR,
 )
 from rag_pipeline import PIPELINE_DESCRIPTION, answer
+from bilan_seuils import calculer_bilan
 
 #Instanciation du module argparse pour le versionning des évaluations en fonction de ce qu'on évalue (notion de version du prototype):
 parser = argparse.ArgumentParser(description="Evaluation RAGAS de l'assistant NBA")
@@ -166,3 +167,8 @@ par_categorie.to_csv(OUTPUT_DIR / "scores_par_categorie.csv", encoding="utf-8-si
 print("\n=== Scores moyens par catégorie ===")
 print(par_categorie.to_string())
 print(f"\nRésultats enregistrés dans {OUTPUT_DIR}")
+
+bilan = calculer_bilan(df, scores)
+bilan.to_csv(OUTPUT_DIR / "bilan_seuils.csv", index=False, encoding="utf-8-sig")
+print("\n=== Bilan par rapport aux seuils (min = bêta, cible = production) ===")
+print(bilan.to_string(index=False))

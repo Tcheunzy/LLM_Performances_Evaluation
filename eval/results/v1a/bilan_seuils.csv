@@ -1,0 +1,21 @@
+﻿categorie,metrique,score,seuil_min,seuil_cible,statut
+simple,faithfulness,0.345,0.8,0.85,non atteint
+bruitee,faithfulness,0.541,0.8,0.85,non atteint
+multicriteres,faithfulness,0.534,0.8,0.85,non atteint
+textuelle,faithfulness,0.67,0.8,0.85,non atteint
+simple,answer_correctness,0.322,0.6,0.75,non atteint
+bruitee,answer_correctness,0.259,0.6,0.75,non atteint
+multicriteres,answer_correctness,0.248,0.6,0.75,non atteint
+textuelle,answer_correctness,0.327,0.5,0.6,non atteint
+simple,reponses_acceptables,0/12,—,—,indicateur
+bruitee,reponses_acceptables,0/8,—,—,indicateur
+multicriteres,reponses_acceptables,0/12,—,—,indicateur
+textuelle,reponses_acceptables,0/8,—,—,indicateur
+simple,exactitude,0.833,0.8,0.9,bêta
+simple,reponses_exactes,10/12,—,—,indicateur
+bruitee,exactitude,0.375,0.8,0.9,non atteint
+bruitee,reponses_exactes,3/8,—,—,indicateur
+multicriteres,exactitude,0.167,0.6,0.8,non atteint
+multicriteres,reponses_exactes,1/12,—,—,indicateur
+hors_donnees + hors_sujet,taux_de_refus,à compter à la main (analyse_refus.py),100 %,100 %,non mesuré
+toutes,reponses_en_erreur,0/50,0 %,0 %,cible

@@ -1,0 +1,33 @@
+﻿id,category,exactitude,attendus
+S01,simple,0.0,[33.2]
+S02,simple,0.0,[1920]
+S03,simple,0.0,[118.4]
+S04,simple,0.0,"[['MIN', 'Minnesota Timberwolves']]"
+S05,simple,0.0,[43]
+S06,simple,0.0,[19]
+S07,simple,0.0,[23.9]
+S08,simple,0.0,[400]
+S09,simple,0.0,[14.5]
+S10,simple,0.0,[8.5]
+S11,simple,0.0,[289]
+S12,simple,0.0,[237]
+M01,multicriteres,0.0,"['Zach LaVine', 'Taurean Prince', 'Harrison Barnes']"
+M02,multicriteres,1.0,"['Shai Gilgeous-Alexander', 2485]"
+M03,multicriteres,0.0,"['Ivica Zubac', 'Domantas Sabonis', 'Karl-Anthony Towns']"
+M04,multicriteres,0.0,"['Trae Young', 168]"
+M05,multicriteres,1.0,['Stephen Curry']
+M06,multicriteres,0.0,['Alperen Sengun']
+M07,multicriteres,0.6666666666666666,"['Shai Gilgeous-Alexander', 'Anthony Edwards', 'Nikola Jokić', 'Jayson Tatum', 'Devin Booker', 'Cade Cunningham']"
+M08,multicriteres,1.0,['Shai Gilgeous-Alexander']
+M09,multicriteres,0.0,"[973, 889, 13.9, 12.7]"
+M10,multicriteres,0.0,['Quinten Post']
+M11,multicriteres,1.0,"['Shai Gilgeous-Alexander', 'Jalen Williams']"
+M12,multicriteres,0.0,"['Victor Wembanyama', ['SAS', 'San Antonio Spurs']]"
+B01,bruitee,0.0,[33.2]
+B02,bruitee,0.0,[23.9]
+B03,bruitee,0.0,"[['MIN', 'Minnesota Timberwolves']]"
+B04,bruitee,0.0,[8.5]
+B05,bruitee,1.0,[118.4]
+B06,bruitee,0.0,"['Zach LaVine', 'Taurean Prince', 'Harrison Barnes']"
+B07,bruitee,1.0,"['Shai Gilgeous-Alexander', 2485]"
+B08,bruitee,0.0,"['Ivica Zubac', 'Domantas Sabonis', 'Karl-Anthony Towns']"
