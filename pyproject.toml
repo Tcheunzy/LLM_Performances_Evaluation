@@ -24,6 +24,7 @@ dependencies = [
     "python-dotenv>=1.2.3",
     "requests>=2.34.2",
     "rich>=14.3.4",
+    "sqlalchemy>=2.1.1",
     "streamlit>=1.64.0",
     "tqdm>=4.70.1",
 ]

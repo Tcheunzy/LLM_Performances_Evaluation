@@ -2253,6 +2253,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "rich" },
+    { name = "sqlalchemy" },
     { name = "streamlit" },
     { name = "tqdm" },
 ]
@@ -2298,6 +2299,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.2.3" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "rich", specifier = ">=14.3.4" },
+    { name = "sqlalchemy", specifier = ">=2.1.1" },
     { name = "streamlit", specifier = ">=1.64.0" },
     { name = "tqdm", specifier = ">=4.70.1" },
 ]

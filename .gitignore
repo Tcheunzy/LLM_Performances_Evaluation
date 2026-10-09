@@ -62,3 +62,4 @@ wheels/
 
 #pydanticia
 .logfire/
+data/nba.db

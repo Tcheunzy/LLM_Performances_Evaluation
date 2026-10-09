@@ -3,33 +3,91 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 import unicodedata
 
 from pydantic import ValidationInfo, field_validator
+from utils.nettoyage_donnees import nettoyer_nom_joueur
 
-class PlayerStats(BaseModel): #Modèle Pydantic
+class PlayerStats(BaseModel):  # Modèle Pydantic
     """Une ligne de joueur de la feuille « Données NBA » (statistiques cumulées sur la saison)."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore") #populate_by_name permet de créer l'objet alias ou avec le nom Python choisi, extra ignore permet de ne pas prendre en compte la levée d'erreur pour de potentiels nouvelles colonnes passant dans la validation qui ne présentent pas de règle sûre.
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    player: str = Field(alias="Player", min_length=2) #nom pyhton, complété avec alias qui ramene au nom de la variable sur le tableur d'inputs
+    # --- Identité
+    player: str = Field(alias="Player", min_length=2)
     team: str = Field(alias="Team", min_length=3, max_length=3)
     age: int = Field(alias="Age", ge=16, le=50)
+
+    # --- Totaux de saison
     gp: int = Field(alias="GP", ge=1, le=82)
     w: int = Field(alias="W", ge=0)
     l: int = Field(alias="L", ge=0)
+    pts: int = Field(alias="PTS", ge=0)
     fgm: int = Field(alias="FGM", ge=0)
     fga: int = Field(alias="FGA", ge=0)
-    fg_pct: float = Field(alias="FG%", ge=0, le=100)
     three_pm: int = Field(alias="3PM", ge=0)
     three_pa: int = Field(alias="3PA", ge=0)
-    three_pct: float = Field(alias="3P%", ge=0, le=100)
     ftm: int = Field(alias="FTM", ge=0)
     fta: int = Field(alias="FTA", ge=0)
-    ft_pct: float = Field(alias="FT%", ge=0, le=100)
+    oreb: int = Field(alias="OREB", ge=0)
+    dreb: int = Field(alias="DREB", ge=0)
+    reb: int = Field(alias="REB", ge=0)
+    ast: int = Field(alias="AST", ge=0)
+    tov: int = Field(alias="TOV", ge=0)
+    stl: int = Field(alias="STL", ge=0)
+    blk: int = Field(alias="BLK", ge=0)
+    pf: int = Field(alias="PF", ge=0)
+    fantasy_pts: int = Field(alias="FP")
+    double_doubles: int = Field(alias="DD2", ge=0)
+    triple_doubles: int = Field(alias="TD3", ge=0)
+    poss: int = Field(alias="POSS", ge=0)
 
-    @model_validator(mode="after") #applications de quelques règles de logique à respecter pour s'assurer le sens des datas.
+    # --- Moyennes par match
+    min_per_game: float = Field(alias="Min", ge=0, le=48)
+    plus_minus: float = Field(alias="+/-")
+
+    # --- Pourcentages (0 à 100)
+    fg_pct: float = Field(alias="FG%", ge=0, le=100)
+    three_pct: float = Field(alias="3P%", ge=0, le=100)
+    ft_pct: float = Field(alias="FT%", ge=0, le=100)
+    ast_pct: float = Field(alias="AST%", ge=0, le=100)
+    oreb_pct: float = Field(alias="OREB%", ge=0, le=100)
+    dreb_pct: float = Field(alias="DREB%", ge=0, le=100)
+    reb_pct: float = Field(alias="REB%", ge=0, le=100)
+    usg_pct: float = Field(alias="USG%", ge=0, le=100)
+    efg_pct: float = Field(alias="EFG%", ge=0, le=150)  # > 100 possible sur très peu de tirs
+    ts_pct: float = Field(alias="TS%", ge=0, le=150)
+
+    # --- Ratings et ratios
+    off_rating: float = Field(alias="OFFRTG", ge=0)
+    def_rating: float = Field(alias="DEFRTG", ge=0)
+    net_rating: float = Field(alias="NETRTG")
+    ast_to_ratio: float = Field(alias="AST/TO", ge=0)
+    ast_ratio: float = Field(alias="AST RATIO", ge=0, le=100)
+    tov_ratio: float = Field(alias="TO RATIO", ge=0, le=100)
+    pace: float = Field(alias="PACE", gt=0)
+    pie: float = Field(alias="PIE")  # peut être négatif
+
+    # --- Anomalies non bloquantes, remplies par le validateur (jamais lues dans l'Excel)
+    anomalies: list[str] = Field(default_factory=list, exclude=True)
+
+    @field_validator("player", mode="before")
+    @classmethod
+    def nettoyer_nom(cls, valeur):
+        return nettoyer_nom_joueur(valeur)
+
+    @field_validator("team", mode="before")
+    @classmethod
+    def verifier_equipe(cls, valeur, info: ValidationInfo):
+        code = str(valeur).strip().upper()
+        codes_connus = (info.context or {}).get("codes_equipes")
+        if codes_connus is not None and code not in codes_connus:
+            raise ValueError(f"Équipe inconnue : {code!r}")
+        return code
+
+    @model_validator(mode="after")
     def regles_metier(self):
         """Règles de cohérence entre plusieurs champs."""
+        # 1. Règles bloquantes : une ligne qui les viole est inexploitable
         if self.w + self.l != self.gp:
-            raise ValueError(f"W + L ({self.w}+{self.l}) différent de GP ({self.gp})") #Si nb matchs gagnés plus perdus différent de nb matchs totaux = on lève une valueerror.
+            raise ValueError(f"W + L ({self.w}+{self.l}) différent de GP ({self.gp})")
         for reussis, tentes, nom in [
             (self.fgm, self.fga, "tirs"),
             (self.three_pm, self.three_pa, "tirs à 3 points"),
@@ -37,6 +95,20 @@ class PlayerStats(BaseModel): #Modèle Pydantic
         ]:
             if reussis > tentes:
                 raise ValueError(f"{nom} : {reussis} réussis > {tentes} tentés")
+        if self.three_pa > self.fga:
+            raise ValueError(f"3PA ({self.three_pa}) > FGA ({self.fga})")
+        if self.triple_doubles > self.double_doubles:
+            raise ValueError(f"TD3 ({self.triple_doubles}) > DD2 ({self.double_doubles})")
+
+        # 2. Règles non bloquantes : on garde la valeur source, on signale l'écart
+        if self.oreb + self.dreb != self.reb:
+            self.anomalies.append(
+                f"REB ({self.reb}) différent de OREB + DREB ({self.oreb}+{self.dreb}={self.oreb + self.dreb})"
+            )
+        if abs(self.off_rating - self.def_rating - self.net_rating) > 0.2:
+            self.anomalies.append(
+                f"NETRTG ({self.net_rating}) différent de OFFRTG - DEFRTG ({self.off_rating - self.def_rating:.1f})"
+            )
         return self
 
 
@@ -129,3 +201,11 @@ class ReponseAssistant(BaseModel):
                 raise ValueError(f"Sources absentes du contexte : {inconnues}. "
                                  f"Sources autorisées : {sorted(autorisees)}")
         return self
+
+class Team(BaseModel):
+    """Une ligne de la feuille « Equipe » : code à 3 lettres et nom complet."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    code: str = Field(alias="Code", pattern=r"^[A-Z]{3}$")
+    name: str = Field(alias="Nom complet de l'équipe", min_length=3)
