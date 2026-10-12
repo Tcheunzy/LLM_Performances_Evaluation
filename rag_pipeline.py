@@ -10,6 +10,7 @@ from pydantic_ai.providers.mistral import MistralProvider
 
 from utils.schemas import ReponseAssistant
 import logfire
+from utils.agent_outils import SOURCE_SQL, ContexteRecherche, interroger_statistiques
 
 # Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
 PIPELINE_DESCRIPTION = "v1c : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant) + ajustement de sécurité"
@@ -98,6 +99,22 @@ USER_PROMPT_V1 = """CONTEXTE :
 QUESTION :
 {question}"""
 
+REGLES_OUTIL_SQL = f"""
+7. Tu disposes de l'outil interroger_statistiques, relié à la base de statistiques de la saison.
+   Pour toute question chiffrée (valeur d'un joueur, classement, comparaison, filtre, moyenne par match),
+   appelle-le AVANT de répondre, avec une question précise.
+8. Les chiffres renvoyés par l'outil priment sur ceux des documents. Recopie-les tels quels :
+   ne les recalcule pas.
+9. Si tu utilises ces chiffres, cite la source « {SOURCE_SQL} ».
+10. Si l'outil renvoie « aucune ligne » ou une erreur, l'information n'est pas disponible :
+    n'invente aucune valeur.
+11. Les données couvrent la saison ENTIÈRE. Si la question porte sur une période ou un match précis
+    (derniers matchs, un mois, une date), l'information n'est pas disponible : ne réponds JAMAIS
+    avec des chiffres de la saison à la place.
+12. Si ta réponse donne des chiffres ou des noms tirés des données, information_disponible vaut true
+    et la liste sources n'est pas vide.
+"""
+SYSTEM_PROMPT_V2 = SYSTEM_PROMPT_V1 + REGLES_OUTIL_SQL
 
 
 # Agent Pydantic AI : même client Mistral (avec relances), sortie validée par ReponseAssistant
@@ -106,11 +123,12 @@ modele_llm = MistralModel(MODEL_NAME, provider=MistralProvider(mistral_client=cl
 agent = Agent(
     modele_llm,
     output_type=ReponseAssistant,                                           # le LLM DOIT renvoyer un objet conforme à ce modèle
-    instructions=SYSTEM_PROMPT_V1,                                          # le prompt système orienté coachs
+    instructions=SYSTEM_PROMPT_V2,                                          # le prompt système orienté coachs
     retries=2,                                                              # si la sortie est invalide, l'agent redemande (2 fois max)
     model_settings={"temperature": 0.1},
-    deps_type=list,                                                         # les sources de la question
-    validation_context=lambda ctx: {"sources_autorisees": ctx.deps},        # transmises au validateur
+    deps_type=ContexteRecherche,                                                         # les sources de la question
+    validation_context=lambda ctx: {"sources_autorisees": ctx.deps.sources_autorisees},        # transmises au validateur
+    tools=[interroger_statistiques]
 )
 
 
@@ -172,10 +190,16 @@ def answer(question: str) -> dict:
             context_str = formater_contexte(search_results)
             user_prompt = USER_PROMPT_V1.format(context_str=context_str, question=question)
 
-        # 3. Génération + validation (l'agent est tracé automatiquement par instrument_pydantic_ai)
+        # 3. Dépendances partagées avec l'agent : l'outil SQL y ajoute ses résultats et sa source.
+        #    Créées AVANT le try, pour exister aussi en cas d'erreur.
+        deps = ContexteRecherche(
+            sources_autorisees=[r["metadata"].get("source") for r in search_results],
+            contextes=[r["text"] for r in search_results],
+        )
+
+        # 4. Génération + validation (l'agent et ses appels d'outils sont tracés par instrument_pydantic_ai)
         try:
-            sources_recuperees = [r["metadata"].get("source") for r in search_results]
-            resultat = agent.run_sync(user_prompt, deps=sources_recuperees)
+            resultat = agent.run_sync(user_prompt, deps=deps)
             sortie = resultat.output
             reponse = sortie.reponse
         except Exception:
@@ -183,28 +207,32 @@ def answer(question: str) -> dict:
             logging.exception("Erreur de l'agent Pydantic AI")
             sortie, reponse = None, MESSAGE_ERREUR
 
-        # 4. Bilan de la réponse
+        # 5. Bilan de la réponse
         logfire.info(
             "Réponse produite: {reponse}",
             reponse=reponse,
             sources_citees=sortie.sources if sortie else [],
             information_disponible=sortie.information_disponible if sortie else None,
             nb_sources_citees=len(sortie.sources) if sortie else 0,
+            nb_requetes_sql=len(deps.requetes_sql),
+            requetes_sql=[r["requete"] for r in deps.requetes_sql],
             erreur=sortie is None,
         )
 
     return {
         "answer": reponse,
-        "contexts": [r["text"] for r in search_results],
+        "contexts": deps.contextes,          # documents FAISS + résultats SQL (pour RAGAS)
         "sources": search_results,
         "information_disponible": sortie.information_disponible if sortie else None,
         "sources_citees": sortie.sources if sortie else [],
+        "requetes_sql": deps.requetes_sql,   # trace des requêtes exécutées
     }
 
 
 if __name__ == "__main__":
     questions = [
         "Quel est le 3P% de James Harden ?",                                              # simple
+        "Quels sont les 3 meilleurs rebondeurs de la saison ?",                           # multicritères -> outil SQL
         "Quel joueur a le meilleur pourcentage à 3 points sur les 5 derniers matchs ?",   # hors données
         "Qui a gagné Roland-Garros en 2025 ?",                                            # hors sujet
     ]
@@ -214,3 +242,5 @@ if __name__ == "__main__":
         print(f"Réponse : {result['answer']}")
         print(f"Information disponible : {result['information_disponible']}")
         print(f"Sources citées : {result['sources_citees']}")
+        for r in result["requetes_sql"]:
+            print(f"SQL ({r['tentatives']} tentative(s), {r['nb_lignes']} ligne(s)) : {r['requete']}")

@@ -91,3 +91,89 @@ def creer_base(chemin_db) -> Engine:
     with moteur.begin() as connexion:
         connexion.execute(text(VUE_PAR_MATCH))
     return moteur
+
+# Description de chaque colonne, avec son UNITÉ : c'est ce texte que lit le LLM qui écrit le SQL.
+# (Le dictionnaire de l'Excel est faux sur les unités : PTS, FGM... y sont dits « par match », ce sont des totaux.)
+DESCRIPTIONS = {
+    "teams": {
+        "code": "code de l'équipe à 3 lettres, ex. 'OKC' (clé primaire)",
+        "name": "nom complet de l'équipe, ex. 'Oklahoma City Thunder'",
+    },
+    "players": {
+        "player_id": "identifiant du joueur (clé primaire)",
+        "name": "nom du joueur, ex. 'Shai Gilgeous-Alexander' (peut contenir des accents : 'Nikola Jokić')",
+        "team_code": "code de l'équipe (clé étrangère vers teams.code)",
+        "age": "âge en années",
+    },
+    "player_stats": {
+        "player_id": "identifiant du joueur (clé étrangère vers players.player_id)",
+        "gp": "nombre de matchs joués",
+        "wins": "victoires de l'équipe lors des matchs joués par le joueur",
+        "losses": "défaites de l'équipe lors des matchs joués par le joueur",
+        "pts": "points marqués, TOTAL saison",
+        "fgm": "tirs réussis, TOTAL saison", "fga": "tirs tentés, TOTAL saison",
+        "three_pm": "tirs à 3 points réussis, TOTAL saison", "three_pa": "tirs à 3 points tentés, TOTAL saison",
+        "ftm": "lancers francs réussis, TOTAL saison", "fta": "lancers francs tentés, TOTAL saison",
+        "oreb": "rebonds offensifs, TOTAL saison", "dreb": "rebonds défensifs, TOTAL saison",
+        "reb": "rebonds, TOTAL saison", "ast": "passes décisives, TOTAL saison",
+        "tov": "balles perdues, TOTAL saison", "stl": "interceptions, TOTAL saison",
+        "blk": "contres, TOTAL saison", "pf": "fautes personnelles, TOTAL saison",
+        "fantasy_pts": "points fantasy, TOTAL saison",
+        "double_doubles": "nombre de double-doubles", "triple_doubles": "nombre de triple-doubles",
+        "poss": "possessions jouées, TOTAL saison",
+        "min_per_game": "minutes jouées, MOYENNE par match",
+        "plus_minus": "plus/minus, MOYENNE par match",
+        "fg_pct": "% de réussite aux tirs, de 0 à 100 (45.2 = 45,2 %)",
+        "three_pct": "% de réussite à 3 points, de 0 à 100",
+        "ft_pct": "% de réussite aux lancers francs, de 0 à 100",
+        "ast_pct": "% des paniers de l'équipe sur passe du joueur, de 0 à 100",
+        "oreb_pct": "% des rebonds offensifs disponibles captés, de 0 à 100",
+        "dreb_pct": "% des rebonds défensifs disponibles captés, de 0 à 100",
+        "reb_pct": "% des rebonds disponibles captés, de 0 à 100",
+        "usg_pct": "taux d'utilisation (% des actions de l'équipe), de 0 à 100",
+        "efg_pct": "effective field goal %, de 0 à 100 (peut dépasser 100 sur très peu de tirs)",
+        "ts_pct": "true shooting %, de 0 à 100 (peut dépasser 100 sur très peu de tirs)",
+        "off_rating": "offensive rating : points marqués par l'équipe pour 100 possessions",
+        "def_rating": "defensive rating : points encaissés pour 100 possessions (plus bas = meilleur)",
+        "net_rating": "net rating = off_rating - def_rating",
+        "ast_to_ratio": "passes décisives par balle perdue",
+        "ast_ratio": "passes décisives pour 100 possessions",
+        "tov_ratio": "balles perdues pour 100 possessions",
+        "pace": "rythme : possessions par 48 minutes",
+        "pie": "PIE (Player Impact Estimate), indice d'impact global",
+    },
+    "matches": {
+        "match_id": "identifiant du match", "season": "saison, ex. '2024-25'",
+        "match_date": "date au format 'AAAA-MM-JJ'",
+        "home_team_code": "équipe à domicile", "away_team_code": "équipe à l'extérieur",
+        "home_score": "score à domicile", "away_score": "score à l'extérieur",
+    },
+}
+
+NOTES_TABLES = {
+    "player_stats": "une ligne par joueur pour TOUTE la saison régulière 2024-25 ; "
+                    "il n'y a PAS de colonne season ni de données par match ou par période",
+    "matches": "ATTENTION : table VIDE. Les données fournies sont des totaux de saison, "
+               "il n'existe aucun résultat match par match.",
+}
+
+def decrire_schema() -> str:
+    """Description textuelle de la base pour le prompt du LLM (tables, colonnes, unités, vue)."""
+    blocs = []
+    for table in metadata.sorted_tables:
+        colonnes = "\n".join(f"  - {c.name} : {DESCRIPTIONS[table.name][c.name]}" for c in table.columns)
+        note = f" ({NOTES_TABLES[table.name]})" if table.name in NOTES_TABLES else ""
+        blocs.append(f"Table {table.name}{note} :\n{colonnes}")
+    colonnes_vue = ", ".join(f"{c}_per_game" for c in TOTAUX_PAR_MATCH)
+    blocs.append(
+        "Vue player_per_game (MOYENNES PAR MATCH déjà calculées, arrondies à 0,1) :\n"
+        f"  - name, team_code, team_name, gp, min_per_game, {colonnes_vue}"
+    )
+    return "\n\n".join(blocs)
+
+
+# Garde-fou : une colonne ajoutée au modèle sans description ferait planter decrire_schema() plus tard.
+_manquantes = [f"{t.name}.{c.name}" for t in metadata.sorted_tables for c in t.columns
+               if c.name not in DESCRIPTIONS.get(t.name, {})]
+if _manquantes:
+    raise RuntimeError(f"Colonnes sans description dans DESCRIPTIONS : {_manquantes}")
