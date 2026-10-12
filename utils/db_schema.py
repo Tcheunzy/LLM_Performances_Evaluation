@@ -68,7 +68,7 @@ matches = Table(
 # Vue : moyennes par match calculées par la base (et non par le LLM). « * 1.0 » évite la division entière.
 VUE_PAR_MATCH = (
     "CREATE VIEW player_per_game AS\n"
-    "SELECT p.name, p.team_code, t.name AS team_name, s.gp, s.min_per_game,\n  "
+    "SELECT p.player_id, p.name, p.team_code, t.name AS team_name, s.gp, s.min_per_game,\n  "
     + ",\n  ".join(f"ROUND(s.{c} * 1.0 / s.gp, 1) AS {c}_per_game" for c in TOTAUX_PAR_MATCH)
     + "\nFROM players p\n"
     "JOIN player_stats s ON s.player_id = p.player_id\n"
@@ -167,7 +167,7 @@ def decrire_schema() -> str:
     colonnes_vue = ", ".join(f"{c}_per_game" for c in TOTAUX_PAR_MATCH)
     blocs.append(
         "Vue player_per_game (MOYENNES PAR MATCH déjà calculées, arrondies à 0,1) :\n"
-        f"  - name, team_code, team_name, gp, min_per_game, {colonnes_vue}"
+        f"  - player_id, name, team_code, team_name, gp, min_per_game, {colonnes_vue}"
     )
     return "\n\n".join(blocs)
 

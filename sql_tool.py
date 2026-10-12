@@ -11,7 +11,7 @@ import re
 import sqlite3
 import unicodedata
 from pathlib import Path
-
+from sqlalchemy.pool import NullPool
 import logfire
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
@@ -54,7 +54,9 @@ def _connexion_lecture_seule() -> sqlite3.Connection:
     return connexion
 
 
-moteur = create_engine("sqlite://", creator=_connexion_lecture_seule)
+# NullPool : une connexion neuve par requête, ouverte et fermée dans le même thread.
+# (Pydantic AI exécute les outils dans un thread séparé ; SQLite refuse qu'une connexion change de thread.)
+moteur = create_engine("sqlite://", creator=_connexion_lecture_seule, poolclass=NullPool)
 
 
 def verifier_requete(sql: str) -> str:

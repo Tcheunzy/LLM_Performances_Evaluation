@@ -13,8 +13,9 @@ import logfire
 from utils.agent_outils import SOURCE_SQL, ContexteRecherche, interroger_statistiques
 
 # Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
-PIPELINE_DESCRIPTION = "v1c : SYSTEM_PROMPT_V1 (coachs) + agent Pydantic AI (sortie ReponseAssistant) + ajustement de sécurité"
-
+PIPELINE_DESCRIPTION = ("v2b : v2 + validateur tolérant au format des sources (correctif) "
+                        "+ règles 13-14 (documents = extrait, résultats SQL = contexte valide) "
+                        "+ player_id dans la vue + connexions SQLite sans pool (correctif)")
 # --- Configuration du logging ---
 logging.basicConfig(
     level=logging.INFO,
@@ -113,6 +114,16 @@ REGLES_OUTIL_SQL = f"""
     avec des chiffres de la saison à la place.
 12. Si ta réponse donne des chiffres ou des noms tirés des données, information_disponible vaut true
     et la liste sources n'est pas vide.
+    13. Les documents fournis ne contiennent qu'un EXTRAIT de quelques fiches joueurs, sur plus de 500.
+    Ils ne permettent JAMAIS de répondre à une question de classement ou de superlatif
+    (« le plus », « le meilleur », « top », « qui a… le plus »), ni à une moyenne par match :
+    pour ces questions, appelle obligatoirement interroger_statistiques.
+13. Les documents fournis ne contiennent qu'un EXTRAIT de quelques fiches joueurs, sur plus de 500.
+    Ils ne permettent JAMAIS de répondre à une question de classement ou de superlatif
+    (« le plus », « le meilleur », « top », « qui a… le plus »), ni à une moyenne par match :
+    pour ces questions, appelle obligatoirement interroger_statistiques.
+14. Les résultats de interroger_statistiques font partie du contexte, au même titre que les documents.
+    Un joueur renvoyé par l'outil est une donnée valide, même s'il n'apparaît pas dans les documents.
 """
 SYSTEM_PROMPT_V2 = SYSTEM_PROMPT_V1 + REGLES_OUTIL_SQL
 

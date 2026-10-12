@@ -1,6 +1,7 @@
 # utils/schemas.py — modèles Pydantic : le « contrat » de chaque donnée du pipeline
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 import unicodedata
+import re
 
 from pydantic import ValidationInfo, field_validator
 from utils.nettoyage_donnees import nettoyer_nom_joueur
@@ -109,6 +110,15 @@ class PlayerStats(BaseModel):  # Modèle Pydantic
             self.anomalies.append(
                 f"NETRTG ({self.net_rating}) différent de OFFRTG - DEFRTG ({self.off_rating - self.def_rating:.1f})"
             )
+        for reussis, tentes, pct, nom in [
+            (self.fgm, self.fga, self.fg_pct, "FG%"),
+            (self.three_pm, self.three_pa, self.three_pct, "3P%"),
+            (self.ftm, self.fta, self.ft_pct, "FT%"),
+        ]:
+            if tentes > 0 and abs(100 * reussis / tentes - pct) > 0.1:
+                self.anomalies.append(
+                    f"{nom} ({pct}) différent de réussis/tentés ({reussis}/{tentes} = {100 * reussis / tentes:.1f})"
+                )
         return self
 
 
@@ -152,11 +162,17 @@ class EmbeddedChunk(BaseModel):
             raise ValueError("Vecteur d'embedding entièrement nul (échec probable de l'API)")
         return self
 
-def _normaliser_source(texte: str) -> str:
-    """Rend la comparaison des sources tolérante : crochets, guillemets, casse et espaces ignorés."""
-    texte = unicodedata.normalize("NFKC", texte).strip().strip("[]«»\"' ").lower()
-    return " ".join(texte.split())
+_PREFIXE_SOURCE = re.compile(r"^source\s*:\s*", re.IGNORECASE)            # « Source: Reddit 2.pdf »
+_SCORE_FINAL = re.compile(r"\s*\(\s*score\s*:[^)]*\)$", re.IGNORECASE)   # « Reddit 2.pdf (Score: 77.1%) »
 
+
+def _normaliser_source(texte: str) -> str:
+    """Forme comparable d'une source : sans l'étiquette « Source: » ni le score de similarité
+    que le modèle recopie souvent depuis le contexte, en minuscules, espaces normalisés."""
+    texte = unicodedata.normalize("NFKC", texte).strip().strip("[]«»\"' ")
+    texte = _PREFIXE_SOURCE.sub("", texte)
+    texte = _SCORE_FINAL.sub("", texte)
+    return " ".join(texte.strip("[]«»\"' ").lower().split())
 
 class ReponseAssistant(BaseModel):
     """Sortie structurée imposée au LLM par l'agent Pydantic AI, avec contrôle de cohérence."""
