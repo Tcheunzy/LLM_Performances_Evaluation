@@ -17,10 +17,7 @@ PIPELINE_DESCRIPTION = ("v2b : v2 + validateur tolérant au format des sources (
                         "+ règles 13-14 (documents = extrait, résultats SQL = contexte valide) "
                         "+ player_id dans la vue + connexions SQLite sans pool (correctif)")
 # --- Configuration du logging ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(module)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 # --- Observabilité : Logfire ---
 # send_to_logfire="if-token-present" : les traces partent vers Logfire si un projet est configuré,

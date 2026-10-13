@@ -17,7 +17,7 @@ from utils.nettoyage_ocr import nettoyer_texte_ocr
 
 
 # Configuration du logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 # --- Importations pour OCR ---
@@ -27,18 +27,18 @@ try:
     import easyocr
 
     # Initialiser le lecteur EasyOCR une seule fois
-    logging.info("Initialisation du lecteur EasyOCR...")
+    logger.info("Initialisation du lecteur EasyOCR...")
     reader = easyocr.Reader(['en', 'fr']) 
-    logging.info("Lecteur EasyOCR initialisé.")
+    logger.info("Lecteur EasyOCR initialisé.")
 
 except ImportError as e:
-    logging.warning(f"Modules OCR (PyMuPDF, Pillow, easyocr) non installés ou erreur: {e}. L'OCR pour PDF ne sera pas disponible.")
+    logger.warning(f"Modules OCR (PyMuPDF, Pillow, easyocr) non installés ou erreur: {e}. L'OCR pour PDF ne sera pas disponible.")
     fitz = None
     Image = None
     easyocr = None
     reader = None
 except Exception as e:
-    logging.error(f"Erreur inattendue lors du chargement des modules/modèle OCR: {e}")
+    logger.error(f"Erreur inattendue lors du chargement des modules/modèle OCR: {e}")
     fitz = None
     Image = None
     easyocr = None
@@ -49,7 +49,7 @@ except Exception as e:
 def extract_text_from_pdf_with_ocr(file_path: str) -> Optional[str]:
     """Extrait le texte d'un fichier PDF en utilisant l'OCR (EasyOCR)."""
     if not fitz or not reader:
-        logging.warning("Modules/Modèle OCR non disponibles. Impossible d'effectuer l'OCR.")
+        logger.warning("Modules/Modèle OCR non disponibles. Impossible d'effectuer l'OCR.")
         return None
 
     text_content = []
@@ -66,21 +66,21 @@ def extract_text_from_pdf_with_ocr(file_path: str) -> Optional[str]:
                 results = reader.readtext(img_np)
                 page_text = "\n".join([res[1] for res in results])
                 text_content.append(page_text)
-                # logging.info(f"OCR effectuée sur la page {page_num + 1} de {file_path} avec EasyOCR") # Commenté pour éviter le spam de logs avec tqdm
+                # logger.info(f"OCR effectuée sur la page {page_num + 1} de {file_path} avec EasyOCR") # Commenté pour éviter le spam de logs avec tqdm
             except Exception as ocr_e:
-                logging.error(f"Erreur lors de l'OCR de la page {page_num + 1} de {file_path} avec EasyOCR: {ocr_e}")
+                logger.error(f"Erreur lors de l'OCR de la page {page_num + 1} de {file_path} avec EasyOCR: {ocr_e}")
                 continue
 
         doc.close()
         full_text = "\n".join(text_content).strip()
         if full_text:
-            logging.info(f"Texte extrait via OCR de PDF: {file_path} ({len(full_text)} caractères)")
+            logger.info(f"Texte extrait via OCR de PDF: {file_path} ({len(full_text)} caractères)")
             return full_text
         else:
-            logging.warning(f"Aucun texte significatif extrait via OCR de {file_path}.")
+            logger.warning(f"Aucun texte significatif extrait via OCR de {file_path}.")
             return None
     except Exception as e:
-        logging.error(f"Erreur lors de l'ouverture ou du traitement OCR du PDF {file_path}: {e}")
+        logger.error(f"Erreur lors de l'ouverture ou du traitement OCR du PDF {file_path}: {e}")
         return None
 
 def extract_text_from_pdf(file_path: str) -> Optional[str]:
@@ -91,24 +91,24 @@ def extract_text_from_pdf(file_path: str) -> Optional[str]:
         text = "".join(page.extract_text() + "\n" for page in reader.pages if page.extract_text())
         
         if len(text.strip()) < 100: # Si très peu de texte est extrait, tenter l'OCR
-            logging.info(f"Peu de texte trouvé dans {file_path} via extraction standard ({len(text.strip())} caractères). Tentative d'OCR...")
+            logger.info(f"Peu de texte trouvé dans {file_path} via extraction standard ({len(text.strip())} caractères). Tentative d'OCR...")
             ocr_text = extract_text_from_pdf_with_ocr(file_path)
             if ocr_text:
                 return ocr_text
             else:
-                logging.warning(f"L'OCR n'a pas non plus produit de texte significatif pour {file_path}.")
+                logger.warning(f"L'OCR n'a pas non plus produit de texte significatif pour {file_path}.")
                 return text # Retourne le peu de texte trouvé ou vide
         
-        logging.info(f"Texte extrait de PDF: {file_path} ({len(text)} caractères)")
+        logger.info(f"Texte extrait de PDF: {file_path} ({len(text)} caractères)")
         return text
     except Exception as e:
-        logging.error(f"Erreur extraction PDF {file_path}: {e}. Tentative d'OCR en dernier recours...")
+        logger.error(f"Erreur extraction PDF {file_path}: {e}. Tentative d'OCR en dernier recours...")
         # Si l'extraction standard échoue complètement, tenter l'OCR
         ocr_text = extract_text_from_pdf_with_ocr(file_path)
         if ocr_text:
             return ocr_text
         else:
-            logging.warning(f"L'OCR n'a pas non plus produit de texte significatif après échec de l'extraction standard pour {file_path}.")
+            logger.warning(f"L'OCR n'a pas non plus produit de texte significatif après échec de l'extraction standard pour {file_path}.")
             return None
 
 
@@ -118,10 +118,10 @@ def extract_text_from_docx(file_path: str) -> Optional[str]:
         import docx
         doc = docx.Document(file_path)
         text = "\n".join(para.text for para in doc.paragraphs if para.text)
-        logging.info(f"Texte extrait de DOCX: {file_path} ({len(text)} caractères)")
+        logger.info(f"Texte extrait de DOCX: {file_path} ({len(text)} caractères)")
         return text
     except Exception as e:
-        logging.error(f"Erreur extraction DOCX {file_path}: {e}")
+        logger.error(f"Erreur extraction DOCX {file_path}: {e}")
         return None
 
 def extract_text_from_txt(file_path: str) -> Optional[str]:
@@ -129,10 +129,10 @@ def extract_text_from_txt(file_path: str) -> Optional[str]:
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             text = f.read()
-        logging.info(f"Texte extrait de TXT: {file_path} ({len(text)} caractères)")
+        logger.info(f"Texte extrait de TXT: {file_path} ({len(text)} caractères)")
         return text
     except Exception as e:
-        logging.error(f"Erreur extraction TXT {file_path}: {e}")
+        logger.error(f"Erreur extraction TXT {file_path}: {e}")
         return None
 
 def extract_text_from_csv(file_path: str) -> Optional[str]:
@@ -144,23 +144,23 @@ def extract_text_from_csv(file_path: str) -> Optional[str]:
         except UnicodeDecodeError:
             df = pd.read_csv(file_path, encoding='latin1') # Essayer un autre encodage courant
         except Exception as read_e:
-             logging.warning(f"Erreur lecture CSV {file_path}: {read_e}. Tentative avec séparateur ';'")
+             logger.warning(f"Erreur lecture CSV {file_path}: {read_e}. Tentative avec séparateur ';'")
              try:
                  df = pd.read_csv(file_path, sep=';')
              except UnicodeDecodeError:
                   df = pd.read_csv(file_path, sep=';', encoding='latin1')
              except Exception as read_e2:
-                   logging.error(f"Impossible de lire le CSV {file_path}: {read_e2}")
+                   logger.error(f"Impossible de lire le CSV {file_path}: {read_e2}")
                    return None
 
         text = df.to_string()
-        logging.info(f"Texte extrait de CSV: {file_path} ({len(text)} caractères)")
+        logger.info(f"Texte extrait de CSV: {file_path} ({len(text)} caractères)")
         return text
     except ImportError:
-        logging.warning("Pandas non installé. Impossible de lire les fichiers CSV.")
+        logger.warning("Pandas non installé. Impossible de lire les fichiers CSV.")
         return None
     except Exception as e:
-        logging.error(f"Erreur extraction CSV {file_path}: {e}")
+        logger.error(f"Erreur extraction CSV {file_path}: {e}")
         return None
 
 def extract_text_from_excel(file_path: str) -> Optional[Union[str, Dict[str, str]]]:
@@ -174,16 +174,16 @@ def extract_text_from_excel(file_path: str) -> Optional[Union[str, Dict[str, str
             df = excel_file.parse(sheet_name)
             sheets_data[sheet_name] = df.to_string()
         
-        logging.info(f"Texte extrait de {len(sheets_data)} feuille(s) dans Excel: {file_path}")
+        logger.info(f"Texte extrait de {len(sheets_data)} feuille(s) dans Excel: {file_path}")
         # Si une seule feuille, retourne directement le texte pour la compatibilité
         if len(sheets_data) == 1:
             return list(sheets_data.values())[0]
         return sheets_data
     except ImportError:
-        logging.warning("Pandas ou openpyxl non installé. Impossible de lire les fichiers Excel.")
+        logger.warning("Pandas ou openpyxl non installé. Impossible de lire les fichiers Excel.")
         return None
     except Exception as e:
-        logging.error(f"Erreur extraction Excel {file_path}: {e}")
+        logger.error(f"Erreur extraction Excel {file_path}: {e}")
         return None
 
 FEUILLE_JOUEURS = "Données NBA"
@@ -222,7 +222,7 @@ def extract_documents_from_excel(file_path: str) -> list[RawDocument]:
             joueur = PlayerStats.model_validate(ligne)
         except ValidationError as e:
             rejets += 1
-            logging.warning(f"Joueur rejeté ({ligne.get('Player')}) : {e.errors()[0]['msg']}")
+            logger.warning(f"Joueur rejeté ({ligne.get('Player')}) : {e.errors()[0]['msg']}")
             continue
         documents.append(RawDocument(
             page_content=joueur_vers_texte(ligne, noms_equipes),
@@ -232,7 +232,7 @@ def extract_documents_from_excel(file_path: str) -> list[RawDocument]:
         ))
 
     ignorees = [f for f in excel.sheet_names if f in FEUILLES_IGNOREES]
-    logging.info(f"{filename} : {len(documents) - 1} joueurs, {rejets} rejetés, feuilles ignorées : {', '.join(ignorees)}")
+    logger.info(f"{filename} : {len(documents) - 1} joueurs, {rejets} rejetés, feuilles ignorées : {', '.join(ignorees)}")
     return documents
 
 # --- Fonctions de chargement ---
@@ -240,10 +240,10 @@ def extract_documents_from_excel(file_path: str) -> list[RawDocument]:
 def download_and_extract_zip(url: str, output_dir: str) -> bool:
     """Télécharge un fichier ZIP depuis une URL et l'extrait."""
     if not url:
-        logging.warning("Aucune URL fournie pour le téléchargement.")
+        logger.warning("Aucune URL fournie pour le téléchargement.")
         return False
     try:
-        logging.info(f"Téléchargement des données depuis {url}...")
+        logger.info(f"Téléchargement des données depuis {url}...")
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
@@ -251,18 +251,18 @@ def download_and_extract_zip(url: str, output_dir: str) -> bool:
         output_path.mkdir(parents=True, exist_ok=True)
 
         with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-            logging.info(f"Extraction du contenu dans {output_dir}...")
+            logger.info(f"Extraction du contenu dans {output_dir}...")
             z.extractall(output_dir)
-        logging.info("Téléchargement et extraction terminés.")
+        logger.info("Téléchargement et extraction terminés.")
         return True
     except requests.exceptions.RequestException as e:
-        logging.error(f"Erreur de téléchargement: {e}")
+        logger.error(f"Erreur de téléchargement: {e}")
         return False
     except zipfile.BadZipFile:
-        logging.error("Le fichier téléchargé n'est pas un ZIP valide.")
+        logger.error("Le fichier téléchargé n'est pas un ZIP valide.")
         return False
     except Exception as e:
-        logging.error(f"Erreur inattendue lors du téléchargement/extraction: {e}")
+        logger.error(f"Erreur inattendue lors du téléchargement/extraction: {e}")
         return False
 
 def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
@@ -273,17 +273,17 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
     documents = []
     input_path = Path(input_dir)
     if not input_path.is_dir():
-        logging.error(f"Le répertoire d'entrée '{input_dir}' n'existe pas.")
+        logger.error(f"Le répertoire d'entrée '{input_dir}' n'existe pas.")
         return []
 
-    logging.info(f"Parcours du répertoire source: {input_dir}")
+    logger.info(f"Parcours du répertoire source: {input_dir}")
     for file_path in input_path.rglob("*.*"):
         if file_path.is_file():
             relative_path = file_path.relative_to(input_path)
             source_folder = relative_path.parts[0] if len(relative_path.parts) > 1 else "root"
             ext = file_path.suffix.lower()
             
-            logging.debug(f"Traitement du fichier: {relative_path} (Dossier source: {source_folder})")
+            logger.debug(f"Traitement du fichier: {relative_path} (Dossier source: {source_folder})")
 
             extracted_content = None
             if ext == ".pdf":
@@ -329,11 +329,11 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
                 continue
             # Suppression de la gestion des fichiers HTML
             else:
-                logging.warning(f"Type de fichier non supporté ignoré: {relative_path}")
+                logger.warning(f"Type de fichier non supporté ignoré: {relative_path}")
                 continue
 
             if not extracted_content:
-                logging.warning(f"Aucun contenu n'a pu être extrait de {relative_path}")
+                logger.warning(f"Aucun contenu n'a pu être extrait de {relative_path}")
                 continue
             
             # Si c'est un dictionnaire (plusieurs feuilles Excel), créer un doc par feuille
@@ -360,5 +360,5 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
                     }
                 })
 
-    logging.info(f"{len(documents)} documents chargés et parsés.")
+    logger.info(f"{len(documents)} documents chargés et parsés.")
     return documents

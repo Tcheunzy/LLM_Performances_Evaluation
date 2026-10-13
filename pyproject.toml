@@ -45,9 +45,6 @@ eval = [                        # évaluation RAGAS
     "langchain-community<0.4",  # requis par ragas (borne : incompatibilité constatée à l'étape 1)
     "rich>=14.3.4",
 ]
-interface = [                   # MistralChat.py, interface Streamlit du prototype
-    "streamlit>=1.64.0",
-]
 
 [tool.uv]
 default-groups = ["dev", "indexing", "eval"]

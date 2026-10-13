@@ -25,7 +25,7 @@ from .config import (
     MISTRAL_RETRY_CONFIG
 )
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class VectorStoreManager:
@@ -43,39 +43,39 @@ class VectorStoreManager:
     def _load_index_and_chunks(self):
         """Charge l'index Faiss et les chunks si les fichiers existent."""
         if not (os.path.exists(FAISS_INDEX_FILE) and os.path.exists(DOCUMENT_CHUNKS_FILE)):
-            logging.warning("Fichiers d'index Faiss ou de chunks non trouvés. L'index est vide.")
+            logger.warning("Fichiers d'index Faiss ou de chunks non trouvés. L'index est vide.")
             return
 
         try:
-            logging.info(f"Chargement de l'index Faiss depuis {FAISS_INDEX_FILE}...")
+            logger.info(f"Chargement de l'index Faiss depuis {FAISS_INDEX_FILE}...")
             self.index = faiss.read_index(FAISS_INDEX_FILE)
-            logging.info(f"Chargement des chunks depuis {DOCUMENT_CHUNKS_FILE}...")
+            logger.info(f"Chargement des chunks depuis {DOCUMENT_CHUNKS_FILE}...")
             with open(DOCUMENT_CHUNKS_FILE, "rb") as f:
                 self.document_chunks = pickle.load(f)
-            logging.info(f"Index ({self.index.ntotal} vecteurs) et {len(self.document_chunks)} chunks chargés.")
+            logger.info(f"Index ({self.index.ntotal} vecteurs) et {len(self.document_chunks)} chunks chargés.")
         except Exception as e:
-            logging.error(f"Erreur lors du chargement de l'index/chunks : {e}")
+            logger.error(f"Erreur lors du chargement de l'index/chunks : {e}")
             self.index = None
             self.document_chunks = []
 
     def _save_index_and_chunks(self):
         """Sauvegarde l'index Faiss et la liste des chunks."""
         if self.index is None or not self.document_chunks:
-            logging.warning("Tentative de sauvegarde d'un index ou de chunks vides.")
+            logger.warning("Tentative de sauvegarde d'un index ou de chunks vides.")
             return
 
         os.makedirs(os.path.dirname(FAISS_INDEX_FILE), exist_ok=True)
         os.makedirs(os.path.dirname(DOCUMENT_CHUNKS_FILE), exist_ok=True)
 
         try:
-            logging.info(f"Sauvegarde de l'index Faiss dans {FAISS_INDEX_FILE}...")
+            logger.info(f"Sauvegarde de l'index Faiss dans {FAISS_INDEX_FILE}...")
             faiss.write_index(self.index, FAISS_INDEX_FILE)
-            logging.info(f"Sauvegarde des chunks dans {DOCUMENT_CHUNKS_FILE}...")
+            logger.info(f"Sauvegarde des chunks dans {DOCUMENT_CHUNKS_FILE}...")
             with open(DOCUMENT_CHUNKS_FILE, "wb") as f:
                 pickle.dump(self.document_chunks, f)
-            logging.info("Index et chunks sauvegardés avec succès.")
+            logger.info("Index et chunks sauvegardés avec succès.")
         except Exception as e:
-            logging.error(f"Erreur lors de la sauvegarde de l'index/chunks : {e}")
+            logger.error(f"Erreur lors de la sauvegarde de l'index/chunks : {e}")
 
     # ------------------------------------------------------------------ #
     # Indexation
@@ -113,7 +113,7 @@ class VectorStoreManager:
                                   source=metadata["source"], doc_type=doc_type)
                 except ValidationError as e:
                     rejets += 1
-                    logging.warning(f"Chunk rejeté ({metadata['source']}, n°{i}) : {e.errors()[0]['msg']}")
+                    logger.warning(f"Chunk rejeté ({metadata['source']}, n°{i}) : {e.errors()[0]['msg']}")
                     continue
                 all_chunks.append({
                     "id": chunk.id,
@@ -121,26 +121,26 @@ class VectorStoreManager:
                     "metadata": {**metadata, "chunk_id_in_doc": i, "start_index": start_index},
                 })
 
-        logging.info(f"{len(all_chunks)} chunks créés, {rejets} rejetés par la validation.")
+        logger.info(f"{len(all_chunks)} chunks créés, {rejets} rejetés par la validation.")
         return all_chunks
 
     def _generate_embeddings(self, chunks: List[Dict[str, Any]]) -> Optional[np.ndarray]:
         """Génère les embeddings pour une liste de chunks via l'API Mistral."""
         if not MISTRAL_API_KEY:
-            logging.error("Impossible de générer les embeddings : MISTRAL_API_KEY manquante.")
+            logger.error("Impossible de générer les embeddings : MISTRAL_API_KEY manquante.")
             return None
         if not chunks:
-            logging.warning("Aucun chunk fourni pour générer les embeddings.")
+            logger.warning("Aucun chunk fourni pour générer les embeddings.")
             return None
 
-        logging.info(f"Génération des embeddings pour {len(chunks)} chunks (modèle : {EMBEDDING_MODEL})...")
+        logger.info(f"Génération des embeddings pour {len(chunks)} chunks (modèle : {EMBEDDING_MODEL})...")
         all_embeddings: List = []
         total_batches = (len(chunks) + EMBEDDING_BATCH_SIZE - 1) // EMBEDDING_BATCH_SIZE
 
         for i in range(0, len(chunks), EMBEDDING_BATCH_SIZE):
             batch_num = i // EMBEDDING_BATCH_SIZE + 1
             texts_to_embed = [chunk["text"] for chunk in chunks[i:i + EMBEDDING_BATCH_SIZE]]
-            logging.info(f"  Traitement du lot {batch_num}/{total_batches} ({len(texts_to_embed)} chunks)")
+            logger.info(f"  Traitement du lot {batch_num}/{total_batches} ({len(texts_to_embed)} chunks)")
 
             try:
                 response = self.mistral_client.embeddings.create(
@@ -153,35 +153,35 @@ class VectorStoreManager:
                 # Correction du prototype : toutes les erreurs (API ou autres) sont traitées pareil,
                 # pour que le nombre d'embeddings reste égal au nombre de chunks.
                 if isinstance(e, MistralError):
-                    logging.error(f"Erreur API Mistral (lot {batch_num}) : {e}")
+                    logger.error(f"Erreur API Mistral (lot {batch_num}) : {e}")
                 else:
-                    logging.error(f"Erreur inattendue (lot {batch_num}) : {e}")
+                    logger.error(f"Erreur inattendue (lot {batch_num}) : {e}")
 
                 if not all_embeddings:
-                    logging.error("Impossible de déterminer la dimension des embeddings, saut du lot.")
+                    logger.error("Impossible de déterminer la dimension des embeddings, saut du lot.")
                     continue
                 dim = len(all_embeddings[0])
-                logging.warning(f"Ajout de {len(texts_to_embed)} vecteurs nuls de dimension {dim} pour le lot échoué.")
+                logger.warning(f"Ajout de {len(texts_to_embed)} vecteurs nuls de dimension {dim} pour le lot échoué.")
                 all_embeddings.extend([np.zeros(dim, dtype="float32")] * len(texts_to_embed))
 
         if not all_embeddings:
-            logging.error("Aucun embedding n'a pu être généré.")
+            logger.error("Aucun embedding n'a pu être généré.")
             return None
 
         embeddings_array = np.array(all_embeddings).astype("float32")
-        logging.info(f"Embeddings générés avec succès. Shape : {embeddings_array.shape}")
+        logger.info(f"Embeddings générés avec succès. Shape : {embeddings_array.shape}")
         return embeddings_array
 
     def build_index(self, documents: List[Dict[str, Any]]):
         """Construit l'index Faiss à partir des documents."""
         if not documents:
-            logging.warning("Aucun document fourni pour construire l'index.")
+            logger.warning("Aucun document fourni pour construire l'index.")
             return
 
         # 1. Découper en chunks
         self.document_chunks = self._split_documents_to_chunks(documents)
         if not self.document_chunks:
-            logging.error("Le découpage n'a produit aucun chunk. Impossible de construire l'index.")
+            logger.error("Le découpage n'a produit aucun chunk. Impossible de construire l'index.")
             return
 
         # 2. Générer les embeddings
@@ -198,18 +198,18 @@ class VectorStoreManager:
                     embedding=vecteur.tolist(),
                 )
             except ValidationError as e:
-                logging.warning(f"Embedding rejeté (chunk {chunk_dict['id']}) : {e.errors()[0]['msg']}")
+                logger.warning(f"Embedding rejeté (chunk {chunk_dict['id']}) : {e.errors()[0]['msg']}")
                 continue
             chunks_valides.append(chunk_dict)
             vecteurs_valides.append(vecteur)
 
         if not chunks_valides:
-            logging.error("Aucun embedding valide : index non créé.")
+            logger.error("Aucun embedding valide : index non créé.")
             return
         self.document_chunks = chunks_valides
         embeddings = np.array(vecteurs_valides, dtype="float32")
         if embeddings is None or embeddings.shape[0] != len(self.document_chunks):
-            logging.error("Le nombre d'embeddings ne correspond pas au nombre de chunks.")
+            logger.error("Le nombre d'embeddings ne correspond pas au nombre de chunks.")
             self.document_chunks = []
             self.index = None
             for path in (FAISS_INDEX_FILE, DOCUMENT_CHUNKS_FILE):
@@ -219,11 +219,11 @@ class VectorStoreManager:
 
         # 3. Index Faiss pour la similarité cosinus (vecteurs normalisés + produit scalaire)
         dimension = embeddings.shape[1]
-        logging.info(f"Création de l'index Faiss (cosinus) avec dimension {dimension}...")
+        logger.info(f"Création de l'index Faiss (cosinus) avec dimension {dimension}...")
         faiss.normalize_L2(embeddings)
         self.index = faiss.IndexFlatIP(dimension)
         self.index.add(embeddings)
-        logging.info(f"Index Faiss créé avec {self.index.ntotal} vecteurs.")
+        logger.info(f"Index Faiss créé avec {self.index.ntotal} vecteurs.")
 
         # 4. Sauvegarder
         self._save_index_and_chunks()
@@ -244,13 +244,13 @@ class VectorStoreManager:
             Liste de dicts {score, raw_score, text, metadata}, triée par score décroissant.
         """
         if self.index is None or not self.document_chunks:
-            logging.warning("Recherche impossible : l'index Faiss n'est pas chargé ou est vide.")
+            logger.warning("Recherche impossible : l'index Faiss n'est pas chargé ou est vide.")
             return []
         if not MISTRAL_API_KEY:
-            logging.error("Recherche impossible : MISTRAL_API_KEY manquante pour l'embedding de la requête.")
+            logger.error("Recherche impossible : MISTRAL_API_KEY manquante pour l'embedding de la requête.")
             return []
 
-        logging.info(f"Recherche des {k} chunks les plus pertinents pour : '{query_text}'")
+        logger.info(f"Recherche des {k} chunks les plus pertinents pour : '{query_text}'")
         try:
             # 1. Embedding de la requête
             response = self.mistral_client.embeddings.create(
@@ -269,12 +269,12 @@ class VectorStoreManager:
             results = []
             for raw_score, idx in zip(scores[0], indices[0]):
                 if not 0 <= idx < len(self.document_chunks):
-                    logging.warning(f"Index Faiss {idx} hors limites (taille des chunks : {len(self.document_chunks)}).")
+                    logger.warning(f"Index Faiss {idx} hors limites (taille des chunks : {len(self.document_chunks)}).")
                     continue
 
                 similarity = float(raw_score) * 100  # Cosinus -> pourcentage
                 if min_score_percent is not None and similarity < min_score_percent:
-                    logging.debug(f"Document filtré (score {similarity:.2f}% < minimum {min_score_percent:.2f}%)")
+                    logger.debug(f"Document filtré (score {similarity:.2f}% < minimum {min_score_percent:.2f}%)")
                     continue
 
                 chunk = self.document_chunks[idx]
@@ -287,12 +287,12 @@ class VectorStoreManager:
 
             results.sort(key=lambda x: x["score"], reverse=True)
             results = results[:k]
-            logging.info(f"{len(results)} chunks pertinents trouvés.")
+            logger.info(f"{len(results)} chunks pertinents trouvés.")
             return results
 
         except MistralError as e:
-            logging.error(f"Erreur API Mistral lors de l'embedding de la requête : {e}")
+            logger.error(f"Erreur API Mistral lors de l'embedding de la requête : {e}")
             return []
         except Exception as e:
-            logging.error(f"Erreur inattendue lors de la recherche : {e}")
+            logger.error(f"Erreur inattendue lors de la recherche : {e}")
             return []
