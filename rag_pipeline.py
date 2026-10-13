@@ -30,7 +30,7 @@ def get_mistral_client(api_key: str) -> Mistral:
     if not api_key:
         raise RuntimeError("MISTRAL_API_KEY absente : définis-la dans le fichier .env.")
     client = Mistral(api_key=api_key, retry_config=MISTRAL_RETRY_CONFIG)
-    logging.info("Client Mistral initialisé.")
+    logger.info("Client Mistral initialisé.")
     return client
 
 client = get_mistral_client(MISTRAL_API_KEY)
@@ -38,7 +38,7 @@ client = get_mistral_client(MISTRAL_API_KEY)
 
 #On charge le vectorstore qui contient toute la logique de récupération du texte et son chargement.
 def get_vector_store_manager() -> VectorStoreManager:
-    logging.info("Chargement du VectorStoreManager...")
+    logger.info("Chargement du VectorStoreManager...")
     manager = VectorStoreManager()
     if manager.index is None or not manager.document_chunks:
         raise RuntimeError("Index FAISS ou chunks introuvables dans vector_db/. Lance indexer.py.")
@@ -46,7 +46,7 @@ def get_vector_store_manager() -> VectorStoreManager:
         raise RuntimeError(
             f"Index incohérent : {manager.index.ntotal} vecteurs pour {len(manager.document_chunks)} chunks."
         )
-    logging.info(f"VectorStoreManager chargé ({manager.index.ntotal} vecteurs).")
+    logger.info(f"VectorStoreManager chargé ({manager.index.ntotal} vecteurs).")
     return manager
 
 vector_store_manager = get_vector_store_manager()
@@ -157,11 +157,11 @@ model = MODEL_NAME
 def generer_reponse(prompt_messages: list[dict]) -> str:
     """Envoie les messages (contexte inclus) à l'API Mistral et renvoie le texte de la réponse."""
     if not prompt_messages:
-        logging.warning("Tentative de génération de réponse avec un prompt vide.")
+        logger.warning("Tentative de génération de réponse avec un prompt vide.")
         return "Je ne peux pas traiter une demande vide."
 
     try:
-        logging.info(f"Appel à l'API Mistral, modèle '{model}', avec {len(prompt_messages)} message(s).")
+        logger.info(f"Appel à l'API Mistral, modèle '{model}', avec {len(prompt_messages)} message(s).")
         response = client.chat.complete(
             model=model,
             messages=prompt_messages,
@@ -169,14 +169,14 @@ def generer_reponse(prompt_messages: list[dict]) -> str:
         )
 
         if response.choices:
-            logging.info("Réponse reçue de l'API Mistral.")
+            logger.info("Réponse reçue de l'API Mistral.")
             return response.choices[0].message.content
 
-        logging.warning("L'API n'a pas retourné de choix valide.")
+        logger.warning("L'API n'a pas retourné de choix valide.")
         return "Désolé, je n'ai pas pu générer de réponse valide pour le moment."
 
     except Exception as e:
-        logging.exception("Erreur API Mistral pendant client.chat.complete")
+        logger.exception("Erreur API Mistral pendant client.chat.complete")
         return "Je suis désolé, une erreur technique m'empêche de répondre. Veuillez réessayer plus tard."
 
 
@@ -212,7 +212,7 @@ def answer(question: str) -> dict:
             reponse = sortie.reponse
         except Exception:
             logfire.exception("Erreur de l'agent Pydantic AI")
-            logging.exception("Erreur de l'agent Pydantic AI")
+            logger.exception("Erreur de l'agent Pydantic AI")
             sortie, reponse = None, MESSAGE_ERREUR
 
         # 5. Bilan de la réponse

@@ -39,6 +39,7 @@ logging.basicConfig(
     level=logging.WARNING,
     format="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler(OUTPUT_DIR / "evaluation.log", mode="w", encoding="utf-8")],
+    force=True,
 )
 logger = logging.getLogger("evaluate_ragas")
 logger.setLevel(logging.INFO)
