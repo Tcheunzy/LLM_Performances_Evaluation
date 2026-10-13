@@ -1,48 +1,37 @@
 [project]
 name = "projet10"
 version = "0.1.0"
-description = "Add your description here"
+description = "Assistant RAG SportSee (NBA) : recherche FAISS + outil SQL, évaluation RAGAS, API FastAPI"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "easyocr>=1.7.2",
+    # Pipeline RAG et agent
     "faiss-cpu>=1.15.1",
-    "fastapi>=0.143.0",
-    "httpx>=0.28.1",
-    "langchain-core>=1.6.5",
-    "langchain-mistralai>=1.1.6",
-    "langchain-text-splitters>=1.1.2",
-    "logfire>=5.1.1",
-    "mistralai>=3,<4",
     "numpy>=2.5.3",
-    "openpyxl>=3.1.5",
-    "pandas>=3.0.6",
-    "pillow>=12.3.0",
+    "mistralai>=3,<4",
     "pydantic>=2.13.5",
     "pydantic-ai-slim[mistral]>=2.54.0",
-    "pymupdf>=1.28.2",
-    "pypdf2>=3.0.1",
-    "python-docx>=1.2.0",
+    "langchain-text-splitters>=1.1.2",
+    "logfire>=5.1.1",
     "python-dotenv>=1.2.3",
-    "requests>=2.34.2",
-    "rich>=14.3.4",
+    # Outil SQL (génération few-shot + base)
+    "langchain-core>=1.6.5",
+    "langchain-mistralai>=1.1.6",
     "sqlalchemy>=2.1.1",
-    "streamlit>=1.64.0",
-    "tqdm>=4.70.1",
-    "uvicorn>=0.54.0",
+    # Chargement des données
+    "pandas>=3.0.6",
+    "openpyxl>=3.1.5",          # moteur de pd.read_excel (non importé directement)
+    # API
+    "fastapi>=0.143.0",
+    "uvicorn>=0.54.0",          # serveur, lancé en ligne de commande
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
+    "httpx>=0.28.1",            # requis par fastapi.testclient
 ]
-eval = [
-    "langchain-community<0.4",
-    "langchain-mistralai>=1.1.6",
-    "ragas>=0.4.3",
-    "rich>=14.3.4",
-]
-indexing = [
+indexing = [                    # construction de l'index FAISS (OCR des PDF)
     "easyocr>=1.7.2",
     "pillow>=12.3.0",
     "pymupdf>=1.28.2",
@@ -51,5 +40,15 @@ indexing = [
     "requests>=2.34.2",
     "tqdm>=4.70.1",
 ]
+eval = [                        # évaluation RAGAS
+    "ragas>=0.4.3",
+    "langchain-community<0.4",  # requis par ragas (borne : incompatibilité constatée à l'étape 1)
+    "rich>=14.3.4",
+]
+interface = [                   # MistralChat.py, interface Streamlit du prototype
+    "streamlit>=1.64.0",
+]
+
 [tool.uv]
-override-dependencies = ["scikit-network; sys_platform == 'never'"]
+default-groups = ["dev", "indexing", "eval"]
+override-dependencies = ["scikit-network; sys_platform == 'never'"]  # dépendance de ragas, ne compile pas en 3.14
