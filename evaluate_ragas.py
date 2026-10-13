@@ -57,16 +57,19 @@ juge_embeddings = LangchainEmbeddingsWrapper(
 responses=[]
 contextes=[]
 disponibles=[]
+requetes_sql = []
 
 for q in track(df["question"], description="Traitement des données"):
     result = answer(q)
     responses.append(result["answer"])
     contextes.append(result["contexts"])
     disponibles.append(result.get("information_disponible"))   # None pour les versions sans agent
+    requetes_sql.append(result.get("requetes_sql", []))
 
 df["answer"] = responses
 df["contexts"] = contextes
 df["information_disponible"] = disponibles
+df["requetes_sql"] = requetes_sql
 
 #Ajout gestion d'erreur
 MESSAGE_ERREUR = "Je suis désolé, une erreur technique"

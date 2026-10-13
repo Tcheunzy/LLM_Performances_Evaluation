@@ -312,6 +312,8 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
             elif ext == ".csv":
                 extracted_content = extract_text_from_csv(str(file_path))
             elif ext in [".xlsx", ".xls"]:
+                if file_path.name.startswith("~$"):  
+                    continue
                 for doc in extract_documents_from_excel(str(file_path)):
                     if file_path.name.startswith("~$"):
                         continue
