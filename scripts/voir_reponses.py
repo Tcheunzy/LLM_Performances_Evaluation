@@ -11,7 +11,7 @@ parser.add_argument("--version", required=True, help="Dossier de résultats (ex.
 parser.add_argument("--ids", nargs="+", required=True, help="Identifiants des questions (ex. S03 S05)")
 args = parser.parse_args()
 
-dossier = Path(__file__).resolve().parent / "eval" / "results" / args.version
+dossier = Path(__file__).resolve().parents[1] / "eval" / "results" / args.version
 reponses = json.loads((dossier / "reponses.json").read_text(encoding="utf-8"))
 scores = pd.read_csv(dossier / "scores_par_question.csv").set_index("id")
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 EXCEL = ROOT / "inputs" / "regular NBA.xlsx"
 TESTSET = ROOT / "eval" / "testset.json"
 OUTPUT = ROOT / "eval" / "elements_attendus.json"

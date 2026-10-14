@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="Taux de refus correct d'une versio
 parser.add_argument("--version", required=True, help="Dossier de résultats (ex. v0_baseline, v1a, v1b)")
 args = parser.parse_args()
 
-fichier = Path(__file__).resolve().parent / "eval" / "results" / args.version / "reponses.json"
+fichier = Path(__file__).resolve().parents[1] / "eval" / "results" / args.version / "reponses.json"
 reponses = json.loads(fichier.read_text(encoding="utf-8"))
 cibles = [r for r in reponses if r["category"] in ("hors_donnees", "hors_sujet")]
 

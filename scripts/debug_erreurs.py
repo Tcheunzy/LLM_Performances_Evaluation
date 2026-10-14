@@ -13,7 +13,7 @@ from pydantic_ai.messages import RetryPromptPart, ToolCallPart
 from rag_pipeline import answer
 
 ids = set(sys.argv[1:])
-testset = json.loads((Path(__file__).resolve().parent / "eval" / "testset.json").read_text(encoding="utf-8"))
+testset = json.loads((Path(__file__).resolve().parents[1] / "eval" / "testset.json").read_text(encoding="utf-8"))
 
 for q in [q for q in testset if q["id"] in ids]:
     print(f"\n===== [{q['id']}] {q['question']}")

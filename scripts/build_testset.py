@@ -6,14 +6,14 @@
 #   - Questions textuelles (Reddit), hors données et hors sujet : la référence est ÉCRITE à la main.
 #
 # Ce fichier est figé une fois validé : le même jeu de test sert à évaluer toutes les versions (v0, v1, v2).
-# Lancement : uv run build_testset.py
+# Lancement (depuis la racine) : uv run python -m scripts.build_testset.py
 import json
 from collections import Counter
 from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 EXCEL = ROOT / "inputs" / "regular NBA.xlsx"
 OUTPUT = ROOT / "eval" / "testset.json"
 

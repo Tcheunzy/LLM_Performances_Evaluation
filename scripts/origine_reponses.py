@@ -17,7 +17,7 @@ parser.add_argument("--version", required=True)
 parser.add_argument("--ids", nargs="+", required=True)
 args = parser.parse_args()
 
-racine = Path(__file__).resolve().parent
+racine = Path(__file__).resolve().parents[1]
 reponses = json.loads((racine / "eval" / "results" / args.version / "reponses.json").read_text(encoding="utf-8"))
 elements = json.loads((racine / "eval" / "elements_attendus.json").read_text(encoding="utf-8"))
 

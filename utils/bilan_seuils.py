@@ -115,11 +115,11 @@ if __name__ == "__main__":
     parser.add_argument("--version", required=True, help="Dossier de résultats (ex. v0_baseline_run1, v1a, v1b)")
     args = parser.parse_args()
 
-    dossier = Path(__file__).resolve().parent / "eval" / "results" / args.version
+    dossier = Path(__file__).resolve().parents[1] / "eval" / "results" / args.version
     reponses = pd.DataFrame(json.loads((dossier / "reponses.json").read_text(encoding="utf-8")))
     scores = pd.read_csv(dossier / "scores_par_question.csv")
 
-    fichier_elements = Path(__file__).resolve().parent / "eval" / "elements_attendus.json"
+    fichier_elements = Path(__file__).resolve().parents[1] / "eval" / "elements_attendus.json"
     exactitude = None
     if fichier_elements.exists():
         elements = json.loads(fichier_elements.read_text(encoding="utf-8"))

@@ -15,8 +15,7 @@ from ragas import EvaluationDataset, RunConfig, evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import answer_correctness, answer_relevancy, context_precision, context_recall, faithfulness
-
-from bilan_seuils import calculer_bilan
+from utils.bilan_seuils import calculer_bilan
 from rag_pipeline import MESSAGE_ERREUR, PIPELINE_DESCRIPTION, answer
 from utils.config import EMBEDDING_MODEL, JUDGE_MODEL, MISTRAL_API_KEY, MODEL_NAME, VECTOR_DB_DIR
 

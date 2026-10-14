@@ -8,7 +8,7 @@
 #   1. garde uniquement les questions À RÉPONSE notées dans les DEUX versions, puis compare les moyennes ;
 #   2. liste les questions à réponse dont answer_relevancy vaut 0, avec le début de la réponse (refus ?) ;
 #   3. liste les plus gros écarts d'answer_correctness entre les deux versions, question par question.
-# Lancement : uv run comparer_versions.py --versions v2 v2b
+# # Lancement (depuis la racine) : uv run python -m scripts.comparer_versions --versions v2 v2b
 import argparse
 import json
 from pathlib import Path
@@ -26,7 +26,7 @@ parser.add_argument("--metrique", default="answer_correctness", choices=METRIQUE
 parser.add_argument("--categorie", choices=CATEGORIES_A_REPONSE, help="limiter la partie 3 à une catégorie")
 args = parser.parse_args()
 
-RESULTATS = Path(__file__).resolve().parent / "eval" / "results"
+RESULTATS = Path(__file__).resolve().parents[1] / "eval" / "results"
 
 
 def charger(version: str) -> pd.DataFrame:
