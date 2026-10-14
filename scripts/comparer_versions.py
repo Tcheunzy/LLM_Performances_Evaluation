@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 METRIQUES = ["faithfulness", "answer_relevancy", "context_precision", "context_recall", "answer_correctness"]
-CATEGORIES_A_REPONSE = ["simple", "bruitee", "multicriteres", "textuelle"]
+CATEGORIES_A_REPONSE = ["simple", "bruitee", "multicriteres", "textuelle", "mixte"]
 
 parser = argparse.ArgumentParser(description="Comparer deux versions sur les mêmes questions")
 parser.add_argument("--versions", nargs=2, required=True, metavar=("AVANT", "APRES"))

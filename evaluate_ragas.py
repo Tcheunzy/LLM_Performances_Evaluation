@@ -23,12 +23,13 @@ from utils.config import EMBEDDING_MODEL, JUDGE_MODEL, MISTRAL_API_KEY, MODEL_NA
 parser = argparse.ArgumentParser(description="Evaluation RAGAS de l'assistant NBA")
 parser.add_argument("--version", required=True, help="Nom de la version de prototype évalué par Ragas (ex:V0_baseline) : dossier de resultats")
 parser.add_argument("--limit", type=int, default=None, help="Nombre de questions à évaluer (par défaut : toutes)")
+parser.add_argument("--testset", default="eval/testset.json", help="Jeu de questions (chemin depuis la racine)")
 args = parser.parse_args()
 
 
 #Création des chemins vers données et d'output:
 ROOT = Path(__file__).resolve().parent
-TESTSET = ROOT / "eval" / "testset.json"
+TESTSET = ROOT / args.testset
 OUTPUT_DIR = ROOT / "eval" / "results" / args.version
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 

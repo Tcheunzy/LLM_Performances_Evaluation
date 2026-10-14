@@ -14,7 +14,7 @@ import pandas as pd
 
 from utils.exactitude import score_exactitude
 
-CATEGORIES_A_REPONSE = ["simple", "bruitee", "multicriteres", "textuelle"]
+CATEGORIES_A_REPONSE = ["simple", "bruitee", "multicriteres", "textuelle","mixte"]
 CATEGORIES_REFUS = ["hors_donnees", "hors_sujet"]
 
 # Métriques bloquantes / de qualité : (seuil minimal = version bêta, seuil cible = production).
@@ -22,13 +22,13 @@ CATEGORIES_REFUS = ["hors_donnees", "hors_sujet"]
 SEUILS = {
     "faithfulness": {c: (0.80, 0.85) for c in CATEGORIES_A_REPONSE},
     "answer_correctness": {"simple": (0.60, 0.75), "bruitee": (0.60, 0.75),
-                           "multicriteres": (0.60, 0.75), "textuelle": (0.50, 0.60)},
+                           "multicriteres": (0.60, 0.75), "textuelle": (0.50, 0.60), "mixte": (0.60, 0.75)},
 }
 SEUIL_ACCEPTABLE = {"answer_correctness": 0.70, "faithfulness": 0.80}  # réponse « utilisable »
 
 # Exactitude déterministe (utils/exactitude.py) : part des nombres / noms attendus présents dans la réponse.
 # Ajoutée après la vérification manuelle de la v1b, et figée avec les autres seuils avant la v2.
-SEUILS_EXACTITUDE = {"simple": (0.80, 0.90), "bruitee": (0.80, 0.90), "multicriteres": (0.60, 0.80)}
+SEUILS_EXACTITUDE = {"simple": (0.80, 0.90), "bruitee": (0.80, 0.90), "multicriteres": (0.60, 0.80), "mixte": (0.60, 0.80)}
 
 
 def statut(score: float, seuil_min: float, seuil_cible: float) -> str:
@@ -113,13 +113,15 @@ def calculer_bilan(reponses: pd.DataFrame, scores: pd.DataFrame,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bilan d'une version évaluée par rapport aux seuils cibles")
     parser.add_argument("--version", required=True, help="Dossier de résultats (ex. v0_baseline_run1, v1a, v1b)")
+    parser.add_argument("--elements", default="eval/elements_attendus.json",
+                        help="Éléments attendus pour l'exactitude (chemin depuis la racine)")
     args = parser.parse_args()
 
     dossier = Path(__file__).resolve().parents[1] / "eval" / "results" / args.version
     reponses = pd.DataFrame(json.loads((dossier / "reponses.json").read_text(encoding="utf-8")))
     scores = pd.read_csv(dossier / "scores_par_question.csv")
 
-    fichier_elements = Path(__file__).resolve().parents[1] / "eval" / "elements_attendus.json"
+    fichier_elements = Path(__file__).resolve().parents[1] / args.elements
     exactitude = None
     if fichier_elements.exists():
         elements = json.loads(fichier_elements.read_text(encoding="utf-8"))

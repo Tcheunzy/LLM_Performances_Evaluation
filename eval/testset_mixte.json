@@ -1,0 +1,58 @@
+[
+  {
+    "id": "MX01",
+    "question": "Un commentaire Reddit souligne que Julius Randle tire à 45 % à 3 points pendant ces playoffs. Quel était son pourcentage à 3 points en saison régulière 2024-25 ?",
+    "ground_truth": "Selon Reddit, Randle tire à 45 % à 3 points en playoffs ; en saison régulière 2024-25, son 3P% était de 34,4 % (110 réussis sur 317 tentés).",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX02",
+    "question": "Sur Reddit, un commentateur affirme que le pourcentage à 3 points de Cade Cunningham a dépassé 35 % cette saison. Est-ce exact d'après les statistiques ?",
+    "ground_truth": "Oui : Cade Cunningham (DET) a tiré à 35,6 % à 3 points en saison régulière 2024-25, soit au-dessus de 35 %.",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX03",
+    "question": "Quel duo de jeunes joueurs d'Orlando l'auteur du post Reddit met-il en avant, et combien de points par match chacun a-t-il marqués en saison régulière ?",
+    "ground_truth": "L'auteur met en avant Paolo Banchero et Franz Wagner. En saison régulière, Banchero a marqué 25,9 points par match (1191 points en 46 matchs) et Franz Wagner 24,2 points par match (1452 points en 60 matchs).",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX04",
+    "question": "Shai Gilgeous-Alexander est accusé sur Reddit de provoquer les fautes. Combien de lancers francs a-t-il tentés sur la saison, et quel est son rang dans la ligue sur ce critère ?",
+    "ground_truth": "Shai Gilgeous-Alexander a tenté 669 lancers francs en saison régulière, le 2e total de la ligue derrière Giannis Antetokounmpo (710).",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX05",
+    "question": "Dans la discussion Reddit sur Reggie Miller, un joueur actuel est présenté comme le seul à approcher son efficacité. Quel est le true shooting (TS%) de ce joueur en saison régulière 2024-25 ?",
+    "ground_truth": "Il s'agit de Kawhi Leonard (LAC), dont le TS% en saison régulière 2024-25 est de 58,9 % (en 37 matchs).",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX06",
+    "question": "Un commentateur Reddit estime qu'Anthony Edwards est en train de franchir un cap. Combien de tirs à 3 points a-t-il réussis en saison régulière, et est-ce le meilleur total de la ligue ?",
+    "ground_truth": "Anthony Edwards (MIN) a réussi 324 tirs à 3 points en saison régulière, le meilleur total de la ligue, devant Malik Beasley (320).",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX07",
+    "question": "Les commentaires Reddit reprochent ses pertes de balle à Cade Cunningham. Combien en a-t-il commis sur la saison, et se classe-t-il parmi les joueurs qui en perdent le plus ?",
+    "ground_truth": "Cade Cunningham a commis 308 pertes de balle en saison régulière, le 3e total de la ligue derrière Trae Young (357) et James Harden (340).",
+    "category": "mixte",
+    "source_attendue": "reddit+excel"
+  },
+  {
+    "id": "MX08",
+    "question": "Un post Reddit présente Reggie Miller comme la première option la plus efficace de l'histoire des playoffs. Quel est son pourcentage de réussite au tir cette saison ?",
+    "ground_truth": "Cette information n'est pas disponible : Reggie Miller est retraité et ne figure pas dans les statistiques de la saison 2024-25. Le post Reddit porte sur sa carrière en playoffs.",
+    "category": "mixte",
+    "source_attendue": "aucune"
+  }
+]

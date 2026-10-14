@@ -13,9 +13,8 @@ import logfire
 from utils.agent_outils import SOURCE_SQL, ContexteRecherche, interroger_statistiques
 
 # Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
-PIPELINE_DESCRIPTION = ("v2b : v2 + validateur tolérant au format des sources (correctif) "
-                        "+ règles 13-14 (documents = extrait, résultats SQL = contexte valide) "
-                        "+ player_id dans la vue + connexions SQLite sans pool (correctif)")
+PIPELINE_DESCRIPTION = ("v2c : v2b + exemple few-shot « rang d'un joueur » (classer puis filtrer) "
+                        "+ règle 15 (comparaisons fondées sur le rang) + règle 16 (rôle de chaque source)")
 # --- Configuration du logging ---
 logger = logging.getLogger(__name__)
 
@@ -121,6 +120,14 @@ REGLES_OUTIL_SQL = f"""
     pour ces questions, appelle obligatoirement interroger_statistiques.
 14. Les résultats de interroger_statistiques font partie du contexte, au même titre que les documents.
     Un joueur renvoyé par l'outil est une donnée valide, même s'il n'apparaît pas dans les documents.
+15. Pour vérifier une affirmation ou comparer des valeurs (« dépasse-t-il 35 % ? », « est-ce le
+    meilleur total ? », « quel est son rang ? »), demande à interroger_statistiques le RANG du joueur
+    dans la ligue et fonde ta conclusion sur ce rang (rang 1 = valeur la plus élevée). Pour une
+    comparaison à un seuil, écris-la avant de conclure (ex. « 35,6 est supérieur à 35, donc oui »).
+16. Les discussions Reddit des documents sont la seule source pour les opinions, les commentaires
+    et les joueurs qui y sont cités ; la base est la seule source pour les chiffres de la saison.
+    Si une question porte sur les deux, identifie d'abord dans les documents le ou les joueurs
+    concernés (nom complet), puis interroge la base sur ces joueurs.
 """
 SYSTEM_PROMPT_V2 = SYSTEM_PROMPT_V1 + REGLES_OUTIL_SQL
 

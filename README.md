@@ -8,7 +8,7 @@ saison régulière NBA 2024-25 en combinant deux sources :
 
 Le projet contient aussi tout le **protocole d'évaluation** (RAGAS + exactitude contrôlée, 50 questions en
 6 catégories) qui a guidé les améliorations du prototype initial jusqu'à la version **v2b**.
-Le rapport complet est dans [`livrables/rapport_evaluation.md`](livrables/rapport_evaluation.md).
+Le rapport complet est dans [`docs/rapport/rapport_evaluation.md`](docs/rapport/rapport_evaluation.md).
 
 ## Résultats en bref
 
@@ -40,7 +40,7 @@ Le détail (toutes les versions, scores RAGAS, analyse des échecs et limites) e
 
 ## Architecture
 
-![Schéma d'architecture de la v2b. Hors ligne : les PDF sont découpés et indexés dans FAISS ; l'Excel est validé par Pydantic puis chargé dans SQLite. En ligne : la question est envoyée à la recherche FAISS, puis à un agent Pydantic AI qui peut appeler l'outil SQL ; la réponse structurée est validée avant d'être renvoyée par l'API.](livrables/images/architecture.png)
+![Schéma d'architecture de la v2b. Hors ligne : les PDF sont découpés et indexés dans FAISS ; l'Excel est validé par Pydantic puis chargé dans SQLite. En ligne : la question est envoyée à la recherche FAISS, puis à un agent Pydantic AI qui peut appeler l'outil SQL ; la réponse structurée est validée avant d'être renvoyée par l'API.](docs/rapport/images/architecture.png)
 
 **Hors ligne (une fois, via `setup_rag.py`)**
 
@@ -69,8 +69,8 @@ Le détail (toutes les versions, scores RAGAS, analyse des échecs et limites) e
 
 - **Python 3.14** et **[uv](https://docs.astral.sh/uv/)** (recommandé) ou `pip`.
 - Une **clé API Mistral** ([console.mistral.ai](https://console.mistral.ai)).
-- Environ **5 Go** d'espace disque pour l'installation complète : l'OCR (`easyocr`) installe PyTorch.
-  L'API seule n'en a pas besoin (voir ci-dessous).
+- Environ **1,3 Go** d'espace disque pour l'installation complète, dont PyTorch (installé par `easyocr`
+  pour l'OCR). L'API seule n'en a pas besoin (voir ci-dessous).
 
 ## Installation
 
@@ -228,7 +228,7 @@ Le jeu de test (`eval/testset.json`) contient **50 questions** avec leur répons
 simples, bruitées (fautes, formulations familières), multicritères, textuelles, hors données, hors sujet.
 
 ```bash
-uv run evaluate_ragas.py --version v2b              # les 50 questions (~30 min, juge ministral-14b)
+uv run evaluate_ragas.py --version v2b              # les 50 questions (~30 min, juge ministral-14b-2512)
 uv run evaluate_ragas.py --version essai --limit 5  # essai rapide
 ```
 
@@ -242,16 +242,23 @@ Les résultats sont écrits dans `eval/results/<version>/` :
 | `config.json` | modèles, index et description du pipeline évalués (traçabilité) |
 | `evaluation.log` | journal de l'exécution |
 
-Scripts d'analyse :
+Outils d'analyse (dossier `scripts/`), à lancer **depuis la racine** sous forme de module :
+
+```bash
+uv run python -m scripts.comparer_versions --versions v2 v2b
+```
 
 | Script | Rôle |
 |---|---|
-| `comparer_versions.py --versions v2 v2b` | compare deux versions **sur les mêmes questions** (`--metrique`, `--categorie`, `--ecarts`) |
-| `analyse_refus.py` | taux de refus corrects sur les questions hors données / hors sujet |
-| `debug_erreurs.py` | rejoue une question et affiche les échanges avec le modèle (appels d'outil, relances de validation) |
-| `voir_reponses.py` | affiche les réponses d'une version |
-| `diagnostic_retrieval_prototype.py` | diagnostic de la recherche documentaire du prototype (v0) |
-| `build_testset.py`, `build_elements_attendus.py` | construction du jeu de test et des éléments attendus pour l'exactitude |
+| `scripts.comparer_versions --versions A B` | compare deux versions **sur les mêmes questions** (`--metrique`, `--categorie`, `--ecarts`) |
+| `scripts.analyse_refus --version V` | liste les réponses aux questions hors données / hors sujet et le taux de refus déclaré |
+| `scripts.voir_reponses --version V --ids S01 M04` | affiche les réponses de certaines questions |
+| `scripts.origine_reponses` | vérifie si chaque élément attendu figure dans la réponse **et** dans le contexte récupéré (donnée issue du contexte ou du modèle ?) |
+| `scripts.debug_erreurs` | rejoue une question et affiche les échanges avec le modèle (appels d'outil, relances de validation) |
+| `scripts.diagnostic_retrieval_prototype` | diagnostic de la recherche documentaire du prototype (v0) |
+| `scripts.verifier_acces_modeles` | liste les modèles Mistral disponibles et teste l'accès de la clé à chacun (403 = hors abonnement, 429 = limite de débit) |
+| `scripts.build_testset`, `scripts.build_elements_attendus` | construction du jeu de test et des éléments attendus pour l'exactitude |
+| `utils.bilan_seuils --version V` | recalcule le bilan par rapport aux seuils d'une version déjà évaluée |
 
 > Les scores RAGAS varient d'une exécution à l'autre (écarts mesurés jusqu'à 0,5 sur une question entre deux
 > exécutions identiques de la v0). Les comparaisons s'appuient donc aussi sur l'**exactitude**, vérifiée de
@@ -270,7 +277,6 @@ Scripts d'analyse :
 ├── load_excel_to_db.py        # Excel -> validation Pydantic -> SQLite + journal des anomalies
 ├── indexer.py                 # PDF -> extraits -> embeddings -> index FAISS
 ├── evaluate_ragas.py          # évaluation RAGAS d'une version
-├── comparer_versions.py, analyse_refus.py, debug_erreurs.py, voir_reponses.py, ...   # analyse
 ├── utils/
 │   ├── config.py              # modèles, chemins, paramètres
 │   ├── schemas.py             # modèles Pydantic (joueurs, équipes, réponse de l'assistant)
@@ -278,7 +284,9 @@ Scripts d'analyse :
 │   ├── agent_outils.py        # outil interroger_statistiques et contexte de l'agent
 │   ├── vector_store.py        # index FAISS : découpage, embeddings, recherche
 │   ├── data_loader.py         # lecture des PDF (dont OCR)
+│   ├── bilan_seuils.py        # comparaison des scores aux seuils (importé par evaluate_ragas)
 │   └── nettoyage_*.py, exactitude.py, formatage_joueur.py
+├── scripts/                   # outils d'analyse et de construction du jeu de test (voir « Évaluer »)
 ├── inputs/                    # données sources : 4 PDF Reddit + regular NBA.xlsx
 ├── vector_db/                 # index du prototype (v0)
 ├── vector_db_v1/              # index des versions v1 et v2
@@ -286,9 +294,9 @@ Scripts d'analyse :
 │   ├── testset.json           # 50 questions de test et leurs références
 │   ├── elements_attendus.json # éléments vérifiés pour l'exactitude
 │   └── results/<version>/     # résultats de chaque version évaluée
-├── docs/audit/                # journal des anomalies de données, diagnostics
-├── livrables/                 # rapport d'évaluation et ses figures
-├── tests/                     # tests des modèles Pydantic
+├── docs/
+│   ├── rapport/               # rapport d'évaluation (.md) et ses figures (images/)
+│   └── audit/                 # journal des anomalies de données, diagnostics de recherche
 ├── pyproject.toml, uv.lock    # dépendances (uv)
 ├── requirements.txt           # dépendances figées (pip)
 └── .env.example               # modèle du fichier de configuration
