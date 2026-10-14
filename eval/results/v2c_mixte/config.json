@@ -1,0 +1,10 @@
+{
+  "version": "v2c_mixte",
+  "date": "2026-10-14T12:50:45",
+  "modele_evalue": "ministral-3b-2512",
+  "modele_juge": "ministral-14b-2512",
+  "modele_embeddings": "mistral-embed",
+  "nb_questions": 8,
+  "index_vectoriel": "vector_db_v1",
+  "pipeline": "v2c : v2b + exemple few-shot « rang d'un joueur » (classer puis filtrer) + règle 15 (comparaisons fondées sur le rang) + règle 16 (rôle de chaque source)"
+}
