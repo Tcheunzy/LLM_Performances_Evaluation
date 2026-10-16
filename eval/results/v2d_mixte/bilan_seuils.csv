@@ -1,0 +1,8 @@
+﻿categorie,metrique,score,seuil_min,seuil_cible,statut
+mixte,faithfulness,0.888,0.8,0.85,cible
+mixte,answer_correctness,0.646,0.6,0.75,bêta
+mixte,reponses_acceptables,3/8,—,—,indicateur
+mixte,exactitude,0.75,0.6,0.8,bêta
+mixte,reponses_exactes,5/7,—,—,indicateur
+hors_donnees + hors_sujet,taux_de_refus,à compter à la main (analyse_refus.py),100 %,100 %,non mesuré
+toutes,reponses_en_erreur,0/8,0 %,0 %,cible

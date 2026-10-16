@@ -6,6 +6,7 @@
 #   - contextes          : le résultat SQL en texte -> évalué par RAGAS (faithfulness) comme un document ;
 #   - sources_autorisees : SOURCE_SQL ajoutée -> le validateur de ReponseAssistant accepte de la citer ;
 #   - requetes_sql       : trace de chaque requête (pour reponses.json et l'analyse des erreurs).
+import threading
 from dataclasses import dataclass, field
 
 from pydantic_ai import RunContext
@@ -24,6 +25,21 @@ class ContexteRecherche:
     sources_autorisees: list[str]
     contextes: list[str]
     requetes_sql: list[dict] = field(default_factory=list)
+    nb_appels: int = 0  # appels d'outils de données déjà RÉSERVÉS (voir reserver_appel)
+    verrou: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+
+def reserver_appel(ctx: RunContext[ContexteRecherche]) -> bool:
+    """Réserve un appel d'outil de données ; False si la limite MAX_APPELS_SQL est atteinte.
+
+    Pydantic AI exécute les appels d'outils PARALLÈLES dans des threads : « lire le compteur, puis
+    l'incrémenter plus tard » laisse passer plusieurs appels à la fois (40 appels observés en v2d).
+    Le verrou rend « vérifier + incrémenter » indivisible."""
+    with ctx.deps.verrou:
+        if ctx.deps.nb_appels >= MAX_APPELS_SQL:
+            return False
+        ctx.deps.nb_appels += 1
+        return True
 
 
 def resultat_en_texte(resultat: dict) -> str:
@@ -53,7 +69,7 @@ def interroger_statistiques(ctx: RunContext[ContexteRecherche], question: str) -
     Args:
         question: la question statistique précise, en français, avec les noms et seuils utiles.
     """
-    if len(ctx.deps.requetes_sql) >= MAX_APPELS_SQL:
+    if not reserver_appel(ctx):
         return (f"Limite de {MAX_APPELS_SQL} interrogations atteinte. Réponds avec les résultats déjà "
                 "obtenus, ou indique que l'information n'est pas disponible.")
     resultat = interroger_base(question)

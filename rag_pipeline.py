@@ -11,12 +11,11 @@ from pydantic_ai.providers.mistral import MistralProvider
 from utils.schemas import ReponseAssistant
 import logfire
 from utils.agent_outils import SOURCE_SQL, ContexteRecherche, interroger_statistiques
+from utils.outils_classement import comparer_a_un_seuil, rang_joueur
 
 # Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
-PIPELINE_DESCRIPTION = ("v2b : v2 + validateur tolérant au format des sources (correctif) "
-                        "+ règles 13-14 (documents = extrait, résultats SQL = contexte valide) "
-                        "+ player_id dans la vue + connexions SQLite sans pool (correctif)")
-# --- Configuration du logging ---
+PIPELINE_DESCRIPTION = ("v2e : v2d + règle 15 restreinte à un joueur nommé + limite d'appels stricte "
+                        "(verrou, appels parallèles) + noms de joueurs nettoyés dans les outils de classement")
 logger = logging.getLogger(__name__)
 
 # --- Observabilité : Logfire ---
@@ -121,6 +120,10 @@ REGLES_OUTIL_SQL = f"""
     pour ces questions, appelle obligatoirement interroger_statistiques.
 14. Les résultats de interroger_statistiques font partie du contexte, au même titre que les documents.
     Un joueur renvoyé par l'outil est une donnée valide, même s'il n'apparaît pas dans les documents.
+15. Les outils rang_joueur et comparer_a_un_seuil concernent UN joueur DÉJÀ NOMMÉ dans la question :
+    son rang dans la ligue, ou la comparaison de sa valeur à un seuil. Recopie le rang et la conclusion
+    renvoyés, sans les recalculer. Pour trouver QUEL joueur est le meilleur ou établir un classement
+    (« qui a le plus… », « les 3 meilleurs… »), continue d'utiliser interroger_statistiques (règle 13).
 """
 SYSTEM_PROMPT_V2 = SYSTEM_PROMPT_V1 + REGLES_OUTIL_SQL
 
@@ -136,7 +139,7 @@ agent = Agent(
     model_settings={"temperature": 0.1},
     deps_type=ContexteRecherche,                                                         # les sources de la question
     validation_context=lambda ctx: {"sources_autorisees": ctx.deps.sources_autorisees},        # transmises au validateur
-    tools=[interroger_statistiques]
+    tools=[interroger_statistiques, rang_joueur, comparer_a_un_seuil]
 )
 
 

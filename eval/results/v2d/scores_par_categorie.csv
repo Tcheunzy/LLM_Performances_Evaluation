@@ -1,0 +1,8 @@
+﻿category,faithfulness,answer_relevancy,context_precision,context_recall,answer_correctness
+bruitee,0.875,0.583,0.447,0.75,0.443
+hors_donnees,0.967,0.0,0.557,1.0,0.713
+hors_sujet,0.53,0.0,0.25,0.5,0.606
+multicriteres,0.843,0.767,0.136,0.5,0.572
+simple,0.944,0.966,0.917,1.0,0.814
+textuelle,0.718,0.659,0.413,0.548,0.465
+GLOBAL,0.845,0.61,0.486,0.736,0.616
