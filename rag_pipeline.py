@@ -14,8 +14,9 @@ from utils.agent_outils import SOURCE_SQL, ContexteRecherche, interroger_statist
 from utils.outils_classement import comparer_a_un_seuil, rang_joueur
 
 # Description du pipeline, enregistrée dans config.json à chaque évaluation (traçabilité)
-PIPELINE_DESCRIPTION = ("v2e : v2d + règle 15 restreinte à un joueur nommé + limite d'appels stricte "
-                        "(verrou, appels parallèles) + noms de joueurs nettoyés dans les outils de classement")
+PIPELINE_DESCRIPTION = ("v2b : v2 + validateur tolérant au format des sources (correctif) "
+                        "+ règles 13-14 (documents = extrait, résultats SQL = contexte valide) "
+                        "+ player_id dans la vue + connexions SQLite sans pool (correctif)")
 logger = logging.getLogger(__name__)
 
 # --- Observabilité : Logfire ---
