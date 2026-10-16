@@ -2,6 +2,8 @@
 
 Oct 16, 2026 · @Cheun
 
+**Version livrée : v2b.** Sur les 50 questions du jeu principal, elle donne 11 réponses simples exactes sur 12, 10 multicritères sur 12 et 10 refus corrects sur 10, sans erreur technique, contre 0, 4 et 0 pour le prototype. Son point faible est le jeu de robustesse mixte (texte Reddit et chiffres) : 2 réponses correctes sur 8. Des outils de calcul déterministes ont porté ce score jusqu'à 6 sur 8 (v2d), mais en faisant régresser les multicritères (8 sur 12 au mieux) : selon le critère fixé avant l'évaluation, ils ne sont pas livrés et restent la piste prioritaire.
+
 ## 1. Contexte et objectifs
 
 SportSee veut un assistant qui réponde aux coachs et analystes sur la saison régulière NBA 2024-25, à partir de deux sources : un fichier Excel de statistiques (569 joueurs, totaux de saison) et quatre PDF de discussions Reddit.
@@ -26,7 +28,7 @@ Le système combine deux sources : un index vectoriel FAISS pour les discussions
 
 **Hors ligne** (`setup_rag.py`), les PDF sont lus, découpés en 644 extraits et vectorisés ; l'Excel est validé ligne par ligne par Pydantic puis chargé dans SQLite. **En ligne**, la recherche FAISS est toujours faite (5 extraits) ; l'agent appelle un outil de données quand la question est chiffrée, puis sa réponse passe par le validateur de sources.
 
-L'agent dispose de trois outils de données (limite stricte de 2 appels par question) :
+Dans la version livrée (v2b), l'agent dispose de l'outil `interroger_statistiques`. Les deux outils déterministes, développés en v2d et v2e, sont dans le dépôt et testés, mais non branchés sur l'agent (section 6). Limite stricte de 2 appels par question :
 
 | Outil | Le modèle fournit | Le code fait | Pour quelles questions |
 | --- | --- | --- | --- |
@@ -191,7 +193,7 @@ Bêta signifie « ouvrable aux coachs sous surveillance », cible « production 
 
 ## 6. Résultats
 
-L'outil SQL a fait passer les questions multicritères de 1 à 10 exactes sur 12 ; les outils déterministes ont fait passer les questions mixtes de 2 à 6 correctes sur 8, au prix d'une régression sur les multicritères en v2d, traitée en v2e.
+La v2b, version livrée, porte les questions multicritères de 1 à 10 exactes sur 12 grâce à l'outil SQL. Les outils déterministes (v2d, v2e) améliorent les questions mixtes (2 sur 8 → 6 puis 4) mais font régresser les multicritères : ils ne sont pas livrés.
 
 ### 6.1 Le jeu principal (50 questions)
 
@@ -201,8 +203,11 @@ L'outil SQL a fait passer les questions multicritères de 1 à 10 exactes sur 12
 | v1a | Données restructurées (une fiche par joueur) | 10/12 | 3/8 | 1/12 | 0/10 | 0 |
 | v1b | Prompt pour coachs, agent Pydantic AI, Logfire | 10/12 | 4/8 | 1/12 | 10/10 | 0 |
 | v2 | Outil SQL (SQLite, LangChain few-shot) | 11/12 | 5/8 | 8/12 | 9/10 | 3 |
-| v2b | Correctifs, règles 13-14 | 11/12 | 5/8 | 10/12 | 10/10 | 0 |
+| **v2b (livrée)** | **Correctifs, règles 13-14** | **11/12** | **5/8** | **10/12** | **10/10** | **0** |
 | v2d | Outils déterministes `rang_joueur`, `comparer_a_un_seuil` | 12/12 | 4/8 | 7/12 | 10/10 | 2 |
+| v2e | v2d fiabilisée : règle 15 restreinte, limite d'appels stricte, noms nettoyés | 12/12 | 5/8 | 8/12 | 10/10 | 0 |
+
+**Le critère de livraison, fixé avant l'évaluation de la v2e** : au moins le niveau de la v2b dans chaque catégorie, sans erreur technique. La v2e le manque en multicritères (8/12 contre 10/12) : M02 cherche de nouveau le meilleur marqueur dans les 5 fiches récupérées (James Harden, 1 801 points, au lieu de Shai Gilgeous-Alexander, 2 485), M04 et M07 refusent au lieu d'interroger la base. **La v2b est donc la version livrée.** Les outils déterministes restent dans le dépôt, testés mais non branchés sur l'agent (tag `v2e-essai`).
 
 Chaque version a corrigé un type d'erreur différent :
 
@@ -218,24 +223,30 @@ Chaque version a corrigé un type d'erreur différent :
 
 ### 6.2 Le jeu de robustesse mixte (8 questions)
 
-| Question | v1b (sans SQL) | v2b | v2c | v2d |
-| --- | --- | --- | --- | --- |
-| MX01 — 3P% de Randle en saison (Reddit : 45 % en playoffs) | correct | correct | correct | correct |
-| MX02 — Cunningham a-t-il dépassé 35 % ? (35,6 %) | « non », faux | « non », faux | « non », faux | **« oui », correct** |
-| MX03 — duo d'Orlando cité sur Reddit et points par match | joueur inventé | refus à tort | joueur inventé | joueur inventé |
-| MX04 — rang de SGA aux lancers francs tentés (2e) | chiffre juste, rang non donné | « 1er », faux | « 1er », faux | **« 2e », correct** |
-| MX05 — TS% du joueur proche de Reggie Miller (Kawhi Leonard) | refus à tort | mauvais joueur | mauvais joueur | mauvais joueur |
-| MX06 — Edwards a-t-il le meilleur total à 3 points ? (oui) | comparaison non faite | « non », faux | « oui », juste par hasard | **« oui, rang 1 », correct** |
-| MX07 — rang de Cunningham aux balles perdues (3e) | chiffre juste, rang non donné | erreur technique | « 1er », faux | **« 3e », correct** |
-| MX08 — FG% de Reggie Miller cette saison (absent) | refus correct | refus correct | refus correct | refus correct |
-| **Réponses correctes** | **2/8** | **2/8** | **2/8** | **6/8** |
-| **Affirmations fausses** | **2** | **4** | **5** | **2** |
+| Question | v1b (sans SQL) | v2b (livrée) | v2c | v2d | v2e |
+| --- | --- | --- | --- | --- | --- |
+| MX01 — 3P% de Randle en saison (Reddit : 45 % en playoffs) | correct | correct | correct | correct | correct |
+| MX02 — Cunningham a-t-il dépassé 35 % ? (35,6 %) | « non », faux | « non », faux | « non », faux | **« oui », correct** | **« oui », correct** |
+| MX03 — duo d'Orlando cité sur Reddit et points par match | joueur inventé | refus à tort | joueur inventé | joueur inventé | joueur inventé |
+| MX04 — rang de SGA aux lancers francs tentés (2e) | chiffre juste, rang non donné | « 1er », faux | « 1er », faux | **« 2e », correct** | **« 2e », correct** |
+| MX05 — TS% du joueur proche de Reggie Miller (Kawhi Leonard) | refus à tort | mauvais joueur | mauvais joueur | mauvais joueur | mauvais joueur |
+| MX06 — Edwards a-t-il le meilleur total à 3 points ? (oui) | comparaison non faite | « non », faux | « oui », juste par hasard | **« oui, rang 1 », correct** | « pas parmi les meilleurs », faux |
+| MX07 — rang de Cunningham aux balles perdues (3e) | chiffre juste, rang non donné | erreur technique | « 1er », faux | **« 3e », correct** | « absent du classement », faux |
+| MX08 — FG% de Reggie Miller cette saison (absent) | refus correct | refus correct | refus correct | refus correct | refus correct |
+| **Réponses correctes** | **2/8** | **2/8** | **2/8** | **6/8** | **4/8** |
+| **Affirmations fausses** | **2** | **4** | **5** | **2** | **4** |
 
-Sans outil SQL, la v1b échouait honnêtement (« je ne peux pas déterminer le rang »). Avec l'outil SQL génératif, la v2b et la v2c affirmaient un rang faux. Les outils déterministes de la v2d rendent les rangs et les comparaisons justes ; restent les deux questions qui demandent d'identifier un joueur dans le texte Reddit (MX03, MX05).
+Sans outil SQL, la v1b échouait honnêtement (« je ne peux pas déterminer le rang »). Avec l'outil SQL génératif, la v2b et la v2c affirmaient un rang faux. Les outils déterministes de la v2d rendent les rangs et les comparaisons justes. La v2e retombe à 4/8 : sur MX06 et MX07, le rang n'est pas obtenu, et le modèle conclut quand même, à tort. Un tel écart entre deux versions qui ne diffèrent pas sur ces questions montre aussi la variabilité d'une exécution unique. Restent, dans toutes les versions, les deux questions qui demandent d'identifier un joueur dans le texte Reddit (MX03, MX05).
 
 ### 6.3 Les seuils atteints
 
-En v2b, version de référence : questions simples au niveau cible (exactitude 0,917, faithfulness 0,903) ; multicritères au niveau cible (exactitude 0,944, faithfulness 0,860) ; bruitées en bêta pour la faithfulness (0,812) mais pas pour l'exactitude (0,625) ; textuelles non atteintes (faithfulness 0,689, answer\_correctness 0,384) ; refus et erreurs au niveau cible. Le jeu mixte n'atteint ses seuils qu'en v2d (exactitude 0,75, bêta ; faithfulness 0,888, cible).
+En v2b, version livrée : questions simples au niveau cible (exactitude 0,917, faithfulness 0,903) ; multicritères au niveau cible (exactitude 0,944, faithfulness 0,860) ; bruitées en bêta pour la faithfulness (0,812) mais pas pour l'exactitude (0,625) ; textuelles non atteintes (faithfulness 0,689, answer\_correctness 0,384) ; refus et erreurs au niveau cible. Le jeu mixte n'atteint ses seuils qu'avec les outils déterministes (v2d : exactitude 0,75 en bêta, faithfulness 0,888 en cible ; v2e : exactitude 0,68 en bêta).
+
+### 6.4 Vue d'ensemble
+
+&#91;embedded content: eval/results/\<version>/ · exactitude déterministe, refus et relecture manuelle · une exécution par version (v0 : 1re exécution)\]
+
+Le jeu principal progresse jusqu'à la v2b puis recule légèrement avec les outils déterministes, qui ne profitent qu'au jeu mixte, et de façon instable d'une exécution à l'autre.
 
 ## 7. Analyse critique
 
@@ -259,7 +270,7 @@ Trois tentatives sur le même défaut (le rang d'un joueur) donnent la leçon pr
 
 1. **v2c, par le prompt** : une règle « demande le rang » et un exemple few-shot « classer puis filtrer ». L'agent demande bien le rang, mais le générateur SQL n'imite pas l'exemple : 2/8, comme la v2b. Une réponse juste (MX06) l'est par hasard.
 2. **v2d, par l'architecture** : des outils au SQL écrit et testé à l'avance ; le modèle ne choisit que les paramètres. Questions mixtes : 6/8. Mais deux effets de bord sur le jeu principal : la règle 15 (« utilise rang\_joueur et non interroger\_statistiques ») a fait classer les joueurs des 5 fiches un par un au lieu d'interroger la base (M12 : 43 contres au lieu de Wembanyama, 175) ; et des appels parallèles ont contourné la limite (40 appels sur M05).
-3. **v2e, fiabilisation** : règle 15 restreinte à un joueur déjà nommé, limite d'appels protégée par un verrou (testée sur 10 appels parallèles : 2 acceptés), noms abîmés des fiches nettoyés (« P,J, Washington »).
+3. **v2e, fiabilisation** : règle 15 restreinte à un joueur déjà nommé, limite d'appels protégée par un verrou (testée sur 10 appels parallèles : 2 acceptés), noms abîmés des fiches nettoyés. Résultat : plus d'erreur technique, M12 corrigée, mais les multicritères restent à 8/12 (contre 10/12 en v2b) et le jeu mixte retombe à 4/8. Version non livrée.
 
 **Le modèle doit comprendre la question, le code doit faire le calcul.** C'est la même logique que la vue `player_per_game`, qui retire déjà la division au modèle. Et une règle de prompt déteint au-delà de sa cible : la règle 13 a créé des précautions verbales jugées évasives par RAGAS, la règle 15 a détourné les classements. Chaque modification impose de réévaluer tout le jeu.
 
