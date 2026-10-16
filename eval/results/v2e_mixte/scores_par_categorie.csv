@@ -1,0 +1,3 @@
+﻿category,faithfulness,answer_relevancy,context_precision,context_recall,answer_correctness
+mixte,0.655,0.464,0.445,0.604,0.589
+GLOBAL,0.655,0.464,0.445,0.604,0.589

@@ -1,0 +1,8 @@
+﻿id,category,exactitude,attendus
+MX01,mixte,1.0,"[45, 34.4]"
+MX02,mixte,1.0,[35.6]
+MX03,mixte,0.25,"['Banchero', 'Franz Wagner', 25.9, 24.2]"
+MX04,mixte,1.0,"[669, 2]"
+MX05,mixte,0.0,"['Kawhi Leonard', 58.9]"
+MX06,mixte,1.0,[324]
+MX07,mixte,0.5,"[308, 3]"

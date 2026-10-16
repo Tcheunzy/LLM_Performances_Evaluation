@@ -1,0 +1,10 @@
+{
+  "version": "v2e",
+  "date": "2026-10-16T15:55:57",
+  "modele_evalue": "ministral-3b-2512",
+  "modele_juge": "ministral-14b-2512",
+  "modele_embeddings": "mistral-embed",
+  "nb_questions": 50,
+  "index_vectoriel": "vector_db_v1",
+  "pipeline": "v2e : v2d + règle 15 restreinte à un joueur nommé + limite d'appels stricte (verrou, appels parallèles) + noms de joueurs nettoyés dans les outils de classement"
+}

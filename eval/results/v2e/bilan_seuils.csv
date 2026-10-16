@@ -1,0 +1,21 @@
+﻿categorie,metrique,score,seuil_min,seuil_cible,statut
+simple,faithfulness,0.938,0.8,0.85,cible
+bruitee,faithfulness,0.833,0.8,0.85,bêta
+multicriteres,faithfulness,0.754,0.8,0.85,non atteint
+textuelle,faithfulness,0.777,0.8,0.85,non atteint
+simple,answer_correctness,0.792,0.6,0.75,cible
+bruitee,answer_correctness,0.451,0.6,0.75,non atteint
+multicriteres,answer_correctness,0.552,0.6,0.75,non atteint
+textuelle,answer_correctness,0.373,0.5,0.6,non atteint
+simple,reponses_acceptables,6/12,—,—,indicateur
+bruitee,reponses_acceptables,1/8,—,—,indicateur
+multicriteres,reponses_acceptables,3/12,—,—,indicateur
+textuelle,reponses_acceptables,0/8,—,—,indicateur
+simple,exactitude,1.0,0.8,0.9,cible
+simple,reponses_exactes,12/12,—,—,indicateur
+bruitee,exactitude,0.625,0.8,0.9,non atteint
+bruitee,reponses_exactes,5/8,—,—,indicateur
+multicriteres,exactitude,0.694,0.6,0.8,bêta
+multicriteres,reponses_exactes,8/12,—,—,indicateur
+hors_donnees + hors_sujet,taux_de_refus (déclaré),10/10,100 %,100 %,cible
+toutes,reponses_en_erreur,0/50,0 %,0 %,cible
