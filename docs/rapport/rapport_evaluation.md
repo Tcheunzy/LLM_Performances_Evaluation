@@ -326,7 +326,8 @@ Chaque question posée à l'API produit une trace (`answer` → `retrieval` → 
 | Score de la recherche (premier extrait) | Questions hors du corpus, dérive des sujets | Baisse durable de la médiane |
 
 Ces indicateurs ne disent pas si une réponse est juste : ils signalent quand regarder de plus près.
-
+![alt text](image-1.png)
+![alt text](image.png)
 ### 8.2 Périodiquement, avec le jeu de test
 
 - **À chaque changement** (prompt, modèle, données, code) : `evaluate_ragas.py` sur les 50 + 8 questions, puis `comparer_versions.py` face à la version en production. Un changement n'est livré que s'il ne régresse sur aucune catégorie (exactitude, refus, erreurs) au-delà du bruit mesuré.
